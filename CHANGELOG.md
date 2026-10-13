@@ -4,9 +4,16 @@ All notable changes to this project are documented here. The format follows Keep
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-10-13
+
 ### Added
 
+- `teams-and-groups-sprawl`: new finding `GRP-GUEST-OWNER` (MEDIUM) for a group with at least one guest owner, with the Graph call to remove the owner once a member owner is in place (#25, thanks @Nexform-star).
 - `conditional-access-gap-analysis`: new check `CA-GAP-DEVICE-CODE` (LOW) when no enabled policy that includes All users blocks the device code flow (`conditions.authenticationFlows.transferMethods` containing `deviceCodeFlow`, grant Block). The `baseline-met` fixture gains such a policy. Closes #14.
+
+### Changed
+
+- Version 0.5.0 in `pyproject.toml`, `plugin.json`, `marketplace.json`, the dispatcher and the README container examples.
 
 ## [0.4.0] - 2026-10-09
 
