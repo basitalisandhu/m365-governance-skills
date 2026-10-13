@@ -4,6 +4,10 @@ All notable changes to this project are documented here. The format follows Keep
 
 ## [Unreleased]
 
+### Added
+
+- `conditional-access-gap-analysis`: new check `CA-GAP-DEVICE-CODE` (LOW) when no enabled policy that includes All users blocks the device code flow (`conditions.authenticationFlows.transferMethods` containing `deviceCodeFlow`, grant Block). The `baseline-met` fixture gains such a policy. Closes #14.
+
 ## [0.4.0] - 2026-10-09
 
 ### Added

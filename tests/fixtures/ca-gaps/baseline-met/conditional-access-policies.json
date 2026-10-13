@@ -207,6 +207,41 @@
           "isEnabled": true
         }
       }
+    },
+    {
+      "id": "00000000-0000-0000-0000-000000000d07",
+      "displayName": "Block device code flow",
+      "state": "enabled",
+      "createdDateTime": "2026-06-01T00:00:00Z",
+      "modifiedDateTime": "2026-09-01T00:00:00Z",
+      "conditions": {
+        "users": {
+          "includeUsers": [
+            "All"
+          ],
+          "excludeGroups": [
+            "00000000-0000-0000-0000-0000000009b0"
+          ]
+        },
+        "applications": {
+          "includeApplications": [
+            "All"
+          ]
+        },
+        "clientAppTypes": [
+          "all"
+        ],
+        "authenticationFlows": {
+          "transferMethods": "deviceCodeFlow"
+        }
+      },
+      "grantControls": {
+        "operator": "OR",
+        "builtInControls": [
+          "block"
+        ]
+      },
+      "sessionControls": null
     }
   ]
 }

@@ -33,6 +33,8 @@ Checks (id, default severity):
   CA-GAP-USER-RISK           LOW       no enabled policy acts on user risk
   CA-GAP-UNMANAGED-SESSION   MEDIUM    no enabled policy applies a session control to unmanaged devices (a device
                                        filter, or the browser client type)
+  CA-GAP-DEVICE-CODE         LOW       no enabled policy that includes All users blocks the device code flow
+                                       (conditions.authenticationFlows.transferMethods contains deviceCodeFlow)
   CA-BREAKGLASS-NOT-EXCLUDED HIGH      a configured break-glass account is covered by an enabled policy (lockout risk)
   CA-EXCLUSION-HAS-ADMIN     HIGH      a group excluded from a policy contains an admin who is not break-glass
   CA-EXCLUSION-UNEXPLAINED   MEDIUM    an excluded user, group or role is neither break-glass nor listed in
@@ -136,6 +138,14 @@ def all_apps(p: dict) -> bool:
 
 def blocks_legacy(p: dict) -> bool:
     return blocks(p) and {"exchangeActiveSync", "other"} <= set(_cond(p).get("clientAppTypes") or [])
+
+
+def blocks_device_code(p: dict) -> bool:
+    """True when the policy blocks the device code flow (transferMethods is a comma-separated string in Graph)."""
+    methods = (_cond(p).get("authenticationFlows") or {}).get("transferMethods") or ""
+    if isinstance(methods, str):
+        methods = methods.split(",")
+    return blocks(p) and "devicecodeflow" in {str(m).strip().lower() for m in methods}
 
 
 def session_controls(p: dict) -> list[str]:
@@ -303,6 +313,13 @@ def check_gaps(enabled: list[dict], t: Tenant, limit: int) -> list[dict]:
                            "sign-in frequency or persistent browser) with a device filter or the browser client type",
                            f"{CA_PORTAL}. Add a policy for browser sessions on devices that are not compliant: app enforced "
                            "restrictions or sign-in frequency"))
+    if not any(blocks_device_code(p) and "All" in (_users(p).get("includeUsers") or []) for p in enabled):
+        out.append(finding("CA-GAP-DEVICE-CODE", "LOW", "tenant", "No policy blocks the device code flow",
+                           "no enabled policy that includes All users sets authentication flows to device code flow with "
+                           "grant Block",
+                           f"{CA_PORTAL}. Add a policy: All users (exclude break-glass and any device that needs the flow, "
+                           "such as meeting room devices), All resources, conditions Authentication flows Device code flow, "
+                           "grant Block. Device code phishing uses this flow to obtain tokens"))
     return out
 
 
