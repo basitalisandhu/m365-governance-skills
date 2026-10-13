@@ -21,8 +21,8 @@ def test_planted_gaps_are_found():
         "CA-GAP-MFA-ALL", "CA-GAP-MFA-ADMINS", "CA-GAP-LEGACY-AUTH", "CA-GAP-ADMIN-DEVICE", "CA-GAP-SIGNIN-RISK", "CA-GAP-USER-RISK",
         "CA-GAP-UNMANAGED-SESSION", "CA-BREAKGLASS-NOT-EXCLUDED", "CA-EXCLUSION-HAS-ADMIN", "CA-EXCLUSION-UNEXPLAINED",
         "CA-REPORT-ONLY-STALE", "CA-INCLUDE-EXCLUDE-CANCEL", "CA-ZERO-TARGET", "CA-OVERLAP", "CA-LOCATION-BROAD",
-        "CA-TRUSTED-LOCATION-SKIP", "CA-DISABLED"}
-    assert rep["counts"] == {"CRITICAL": 1, "HIGH": 4, "MEDIUM": 9, "LOW": 3, "INFO": 2}
+        "CA-TRUSTED-LOCATION-SKIP", "CA-DISABLED", "CA-GAP-DEVICE-CODE"}
+    assert rep["counts"] == {"CRITICAL": 1, "HIGH": 4, "MEDIUM": 9, "LOW": 4, "INFO": 2}
 
 
 def test_baseline_met_is_clean():
@@ -120,3 +120,45 @@ def test_bad_input_exits_2(tmp_path, write):
     assert rc == 2 and "conditional-access-policies.json" in err
     rc, _, err = run_main(mod, [str(GAPS), "--config", str(write("c.yaml", "explained_exclusions: [a, b]\n"))])
     assert rc == 2 and "explained_exclusions" in err
+
+
+def _device_code_policy(**over):
+    p = {"id": "dc", "displayName": "Block device code flow", "state": "enabled",
+         "conditions": {"users": {"includeUsers": ["All"]}, "applications": {"includeApplications": ["All"]},
+                        "authenticationFlows": {"transferMethods": "deviceCodeFlow"}},
+         "grantControls": {"operator": "OR", "builtInControls": ["block"]}}
+    p.update(over)
+    return p
+
+
+def test_device_code_flow_block_is_recognised():
+    assert mod.blocks_device_code(_device_code_policy())
+    flows = {"transferMethods": "authenticationTransfer,deviceCodeFlow"}
+    both = _device_code_policy()
+    both["conditions"] = {**both["conditions"], "authenticationFlows": flows}
+    assert mod.blocks_device_code(both)
+    as_list = _device_code_policy()
+    as_list["conditions"] = {**as_list["conditions"], "authenticationFlows": {"transferMethods": ["deviceCodeFlow"]}}
+    assert mod.blocks_device_code(as_list)
+    assert not mod.blocks_device_code(_device_code_policy(grantControls={"builtInControls": ["mfa"]}))
+    other = _device_code_policy()
+    other["conditions"] = {**other["conditions"], "authenticationFlows": {"transferMethods": "authenticationTransfer"}}
+    assert not mod.blocks_device_code(other)
+
+
+def test_device_code_gap_needs_an_enabled_policy_for_all_users(tmp_path):
+    folder = tmp_path / "ca"
+    shutil.copytree(MET, folder)
+    path = folder / "conditional-access-policies.json"
+    data = json.loads(path.read_text(encoding="utf-8"))
+    [dc] = [p for p in data["value"] if p["displayName"] == "Block device code flow"]
+    dc["state"] = "enabledForReportingButNotEnforced"
+    path.write_text(json.dumps(data), encoding="utf-8")
+    _, rep = run_json(mod, [str(folder), *BASE])
+    [f] = checks(rep, "CA-GAP-DEVICE-CODE")
+    assert f["severity"] == "LOW" and "Device code flow" in f["fix"]["portal"]
+    dc["state"] = "enabled"
+    dc["conditions"]["users"] = {"includeGroups": ["00000000-0000-0000-0000-0000000009b0"]}
+    path.write_text(json.dumps(data), encoding="utf-8")
+    _, rep = run_json(mod, [str(folder), *BASE])
+    assert checks(rep, "CA-GAP-DEVICE-CODE")
