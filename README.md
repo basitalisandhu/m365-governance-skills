@@ -181,6 +181,17 @@ claude plugin validate --strict . && claude plugin validate --strict ./plugins/m
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the ground rules and [docs/good-first-issues.md](docs/good-first-issues.md) for a place to start.
 
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) and the open [good first issues](https://github.com/basitalisandhu/m365-governance-skills/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22). The plan is in [ROADMAP.md](ROADMAP.md); questions and ideas go in [Discussions](https://github.com/basitalisandhu/m365-governance-skills/discussions).
+
+## Contributors
+
+Thank you to everyone who has had a pull request merged here:
+
+- [@Nexform-star](https://github.com/Nexform-star) flagged guest owners in the groups review ([#25](https://github.com/basitalisandhu/m365-governance-skills/pull/25)) and added service principal sign-ins to the access review ([#26](https://github.com/basitalisandhu/m365-governance-skills/pull/26)).
+- [@nawaaaaaAaar](https://github.com/nawaaaaaAaar) added detection of disabled role holders ([#27](https://github.com/basitalisandhu/m365-governance-skills/pull/27)).
+
 ## Related projects
 
 | Project | What it is |
