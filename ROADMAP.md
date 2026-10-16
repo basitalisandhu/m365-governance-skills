@@ -1,6 +1,6 @@
 # Roadmap
 
-This is what we are working on and what we would like help with, in plain order. It is a list of intentions, not promises: there are no dates, and the order changes when people show up or the evidence changes. Every item links an issue. Comment there to claim it or to argue for a different order, or vote in the [Roadmap discussion](https://github.com/basitalisandhu/m365-governance-skills/discussions).
+This is what we are working on and what we would like help with, in plain order. It is a list of intentions, not promises: there are no dates, and the order changes when people show up or the evidence changes. Every item links an issue. Comment there to claim it or to argue for a different order, or vote in the [Roadmap discussion](https://github.com/basitalisandhu/m365-governance-skills/discussions/39).
 
 ## Now
 
