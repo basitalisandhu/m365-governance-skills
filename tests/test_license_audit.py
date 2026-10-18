@@ -94,3 +94,47 @@ def test_bad_config(write):
     assert rc == 2 and "unit_costs" in err
     rc, _, err = run_main(mod, [T, "--config", str(write("d.yaml", "overlapping_skus: [SPE_E5]\n"))])
     assert rc == 2 and "overlapping_skus" in err
+
+
+def test_single_unwanted_plan_as_a_string(write):
+    """`unwanted_service_plans: SWAY` used to be read letter by letter and matched nothing."""
+    one = write("c.yaml", "unwanted_service_plans: SWAY\n")
+    _, rep = run_json(mod, [T, "--config", str(one), "--as-of", "2026-10-04", "--json"])
+    assert [f["subject"] for f in checks(rep, "LIC-UNWANTED-PLAN")] == ["SWAY"]
+    rc, _, err = run_main(mod, [T, "--config", str(write("d.yaml", "unwanted_service_plans: {SWAY: true}\n"))])
+    assert rc == 2 and "must be a list of names or ids" in err
+
+
+def test_documented_license_assignment_error_values(write, tmp_path):
+    """licenseAssignmentState.error values from the Graph v1.0 reference (CountViolation, MutuallyExclusiveViolation,
+    DependencyViolation, ProhibitedInUsageLocationViolation, UniquenessViolation, Other) with state Error or
+    ActiveWithError on a group-assigned licence each raise LIC-GROUP-ERROR."""
+    import json
+    import shutil
+
+    folder = tmp_path / "t"
+    shutil.copytree(T, folder)
+    skus = json.loads((folder / "subscribed-skus.json").read_text(encoding="utf-8"))
+    sku = (skus["value"] if isinstance(skus, dict) else skus)[0]["skuId"]
+    errors = ["CountViolation", "MutuallyExclusiveViolation", "DependencyViolation", "ProhibitedInUsageLocationViolation",
+              "UniquenessViolation", "Other"]
+    users = [{"id": f"00000000-0000-0000-0000-0000000009{i:02d}", "userPrincipalName": f"e{i}@example.com", "displayName": f"E {i}",
+              "accountEnabled": True, "createdDateTime": "2025-01-01T00:00:00Z", "assignedLicenses": [],
+              "signInActivity": {"lastSignInDateTime": "2026-10-01T00:00:00Z"},
+              "licenseAssignmentStates": [{"skuId": sku, "assignedByGroup": "00000000-0000-0000-0000-000000000777",
+                                           "state": "Error" if i % 2 else "ActiveWithError", "error": err, "disabledPlans": []}]}
+             for i, err in enumerate(errors)]
+    (folder / "users.json").write_text(json.dumps({"value": users}), encoding="utf-8")
+    _, rep = run_json(mod, [str(folder), "--as-of", "2026-10-04", "--json"])
+    [f] = checks(rep, "LIC-GROUP-ERROR")
+    assert all(e in f["evidence"] for e in errors) and "6 user(s)" in f["evidence"]
+
+
+def test_wrong_shape_subscribed_skus_is_bad_input(tmp_path):
+    import shutil
+
+    folder = tmp_path / "t"
+    shutil.copytree(T, folder)
+    (folder / "subscribed-skus.json").write_text('{"skuPartNumber": "ENTERPRISEPACK"}', encoding="utf-8")
+    rc, out, err = run_main(mod, [str(folder), "--as-of", "2026-10-04"])
+    assert rc == 2 and out == "" and "subscribed-skus.json" in err and "without an id" in err

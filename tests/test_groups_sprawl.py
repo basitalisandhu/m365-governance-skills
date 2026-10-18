@@ -76,3 +76,49 @@ def test_bad_config(write):
     assert rc == 2 and "regular expression" in err
     rc, _, err = run_main(mod, [T, "--config", str(write("c2.yaml", "naming_applies_to: [teams]\n"))])
     assert rc == 2 and "unknown kinds" in err
+
+
+def test_naming_applies_to_accepts_a_single_kind(write):
+    """`naming_applies_to: team` used to be read letter by letter ("unknown kinds a, e, m, t")."""
+    cfg = write("c.yaml", 'naming_pattern: "^(PRJ|DEP|TMP)-"\nnaming_applies_to: team\n')
+    rc, rep = run_json(mod, [T, "--config", str(cfg), "--as-of", "2026-10-04", "--json"])
+    assert rc in (0, 1) and by(rep, "GRP-NAMING") == {"Finance Team": "LOW"}
+
+
+def test_activity_report_with_documented_columns(write, tmp_path):
+    """getTeamsTeamActivityDetail CSV columns per the Graph v1.0 reference: Team Name, Team Id, Team Type,
+    Last Activity Date (among others). A team with an old last activity is TEAM-INACTIVE."""
+    import shutil
+
+    folder = tmp_path / "t"
+    shutil.copytree(T, folder)
+    (folder / "teams-activity.csv").write_text(
+        "Report Refresh Date,Team Name,Team Id,Team Type,Last Activity Date,Report Period,Active Users,Active Channels,Guests,"
+        "Reactions,Meetings Organized,Post Messages,Reply Messages,Channel Messages,Urgent Messages,Mentions,"
+        "Active Shared Channels,Active External Users\n"
+        "2026-10-02,Finance Team,00000000-0000-0000-0000-000000000302,Public,2026-05-01,90,0,0,0,0,0,0,0,0,0,0,0,0\n"
+        "2026-10-02,PRJ-Apollo,00000000-0000-0000-0000-000000000301,Private,2026-09-30,90,3,2,1,0,0,0,0,0,0,0,0,0\n",
+        encoding="utf-8")
+    _, rep = run_json(mod, [str(folder), *BASE])
+    assert by(rep, "TEAM-INACTIVE") == {"Finance Team": "LOW"}
+
+
+def test_activity_report_with_wrong_columns_is_bad_input(tmp_path):
+    """A CSV without Team Id or Team Name and Last Activity Date used to hide every TEAM-INACTIVE finding silently."""
+    import shutil
+
+    folder = tmp_path / "t"
+    shutil.copytree(T, folder)
+    (folder / "teams-activity.csv").write_text("foo,bar\n1,2\n", encoding="utf-8")
+    rc, out, err = run_main(mod, [str(folder), *BASE])
+    assert rc == 2 and out == "" and "teams-activity.csv" in err and "Last Activity Date" in err
+
+
+def test_wrong_shape_groups_file_is_bad_input(tmp_path):
+    import shutil
+
+    folder = tmp_path / "t"
+    shutil.copytree(T, folder)
+    (folder / "groups.json").write_text('{"displayName": "one group without an id"}', encoding="utf-8")
+    rc, _, err = run_main(mod, [str(folder), *BASE])
+    assert rc == 2 and "groups.json" in err and "without an id" in err

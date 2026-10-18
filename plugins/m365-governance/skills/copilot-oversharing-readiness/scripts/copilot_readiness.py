@@ -85,26 +85,43 @@ SPO_PORTAL = "SharePoint admin center > Sites > Active sites > (site)"
 CSV_COLUMNS = ["owner", "site", "bucket", "severity", "check", "finding", "action"]
 
 
+TENANT_KEYS = ("sharingcapability", "defaultsharinglinktype", "requireanonymouslinksexpireindays")
+
+
 class InputError(Exception):
     """Bad or unreadable input. Exit 2."""
 
 
 def load_json(path: Path):
     try:
-        return json.loads(path.read_text(encoding="utf-8-sig"))
+        text = path.read_text(encoding="utf-8-sig")
     except OSError as exc:
         raise InputError(f"{path.name}: cannot read: {exc}") from exc
+    if not text.strip():
+        raise InputError(f"{path.name}: file is empty; re-run the export and save the JSON output")
+    try:
+        return json.loads(text)
     except json.JSONDecodeError as exc:
-        raise InputError(f"{path.name}: invalid JSON: {exc}") from exc
+        raise InputError(f"{path.name}: invalid JSON (save the ConvertTo-Json or Graph response unchanged): {exc}") from exc
 
 
-def items(data, where: str) -> list[dict]:
-    if isinstance(data, dict) and isinstance(data.get("value"), list):
+def items(data, where: str, expect: tuple[str, ...] = ()) -> list[dict]:
+    """Objects in a PnP list, a Graph {"value": [...]} envelope or a single object. With `expect` (lower-case keys), every
+    object must carry at least one of them, so that a file of the wrong shape is reported instead of read as empty."""
+    if isinstance(data, dict) and "value" in data:
+        if not isinstance(data["value"], list):
+            raise InputError(f'{where}: "value" must be a list of objects, as in a Graph collection response')
         data = data["value"]
     elif isinstance(data, dict):
         data = [data]
     if not isinstance(data, list) or not all(isinstance(x, dict) for x in data):
         raise InputError(f'{where}: expected a JSON object, a list of objects, or {{"value": [...]}}')
+    if expect:
+        for row in data:
+            if not set(expect) & {str(k).lower() for k in row}:
+                keys = ", ".join(sorted(row)[:5]) or "none"
+                raise InputError(f"{where}: an entry has none of the expected properties ({', '.join(expect)}); got keys: {keys}. "
+                                 "Check that the right command was saved to this file")
     return data
 
 
@@ -221,7 +238,7 @@ def read_links(folder: Folder) -> dict[str, dict[str, int]] | None:
     rows = folder.rows("sharing-links.csv")
     if data is None and rows is None:
         return None
-    for perm in items(data, "sharing-links.json") if data is not None else []:
+    for perm in items(data, "sharing-links.json", expect=("link", "siteurl")) if data is not None else []:
         p = low(perm)
         site = norm_url(p.get("siteurl"))
         scope = str((p.get("link") or {}).get("scope") or "").lower() if isinstance(p.get("link"), dict) else ""
@@ -284,14 +301,22 @@ def evaluate(path: str, args) -> dict:
     labels = (
         None
         if label_data is None
-        else {str(low(x).get("id") or ""): str(low(x).get("displayname") or low(x).get("name") or "") for x in items(label_data, "labels.json")}
+        else {
+            str(low(x).get("id") or "").lower(): str(low(x).get("displayname") or low(x).get("name") or "")
+            for x in items(label_data, "labels.json", expect=("id",))
+        }
     )
     grants = read_grants(folder.get("site-groups.json"))
     links = read_links(folder)
     tenant_data = folder.get("tenant.json")
-    tenant = low(items(tenant_data, "tenant.json")[0]) if tenant_data else None
+    tenant = None
+    if tenant_data is not None:
+        rows = items(tenant_data, "tenant.json", expect=TENANT_KEYS)
+        if not rows:
+            raise InputError("tenant.json: holds no object; export Get-PnPTenant or GET /admin/sharepoint/settings again")
+        tenant = low(rows[0])
     dlp_data = folder.get("dlp-policies.json")
-    dlp = items(dlp_data, "dlp-policies.json") if dlp_data is not None else None
+    dlp = items(dlp_data, "dlp-policies.json", expect=("name", "mode", "enabled")) if dlp_data is not None else None
     try:
         sensitive = re.compile(args.sensitive_pattern)
     except re.error as exc:

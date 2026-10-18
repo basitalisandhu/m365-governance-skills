@@ -104,9 +104,12 @@ HIGH_RISK_APP_ROLES = TAKEOVER_APP_ROLES | {
     "DeviceManagementManagedDevices.PrivilegedOperations.All", "DeviceManagementRBAC.ReadWrite.All",
     "Chat.ReadWrite.All", "MailboxSettings.ReadWrite", "Calendars.ReadWrite", "Policy.ReadWrite.AuthenticationMethod",
 }
-LEGACY_CLIENTS = {"Exchange ActiveSync", "Other clients", "IMAP4", "POP3", "SMTP", "Authenticated SMTP", "MAPI Over HTTP",
-                  "Offline Address Book", "Exchange Web Services", "AutoDiscover", "Exchange Online PowerShell",
-                  "Outlook Anywhere (RPC over HTTP)", "Reporting Web Services", "Universal Outlook"}
+# signIn.clientAppUsed: the Graph v1.0 reference lists the legacy clients as "Exchange ActiveSync", "IMAP", "MAPI", "SMTP",
+# "POP" and "other clients"; sign-in logs also carry the longer forms below. Compared case-insensitively.
+LEGACY_CLIENTS = {c.lower() for c in (
+    "Exchange ActiveSync", "IMAP", "MAPI", "SMTP", "POP", "Other clients",
+    "IMAP4", "POP3", "Authenticated SMTP", "MAPI Over HTTP", "Offline Address Book", "Exchange Web Services", "AutoDiscover",
+    "Exchange Online PowerShell", "Outlook Anywhere (RPC over HTTP)", "Reporting Web Services", "Universal Outlook")}
 CONFIG_KEYS = {"break_glass", "break_glass_groups", "max_global_admins", "stale_guest_days", "max_secret_days", "expiring_days"}
 CA_PORTAL = "Entra admin center > Protection > Conditional Access > Policies"
 
@@ -418,8 +421,8 @@ def check_logs(signins, audits) -> list[dict]:
     out: list[dict] = []
     legacy: dict[str, set[str]] = {}
     for s in signins or []:
-        client = s.get("clientAppUsed", "")
-        if client in LEGACY_CLIENTS and ((s.get("status") or {}).get("errorCode", 0) == 0):
+        client = str(s.get("clientAppUsed") or "")
+        if client.strip().lower() in LEGACY_CLIENTS and ((s.get("status") or {}).get("errorCode", 0) == 0):
             legacy.setdefault(s.get("userPrincipalName", "?"), set()).add(client)
     for upn, clients in sorted(legacy.items()):
         out.append(finding("SIGNIN-LEGACY-USED", "MEDIUM", upn, "Successful legacy-authentication sign-ins in the exported window",
@@ -436,8 +439,8 @@ def check_logs(signins, audits) -> list[dict]:
 def evaluate(folder: str, cfg: dict, now) -> tuple[dict, Export, set[str]]:
     ex = Export(folder)
     policies = ex.list("conditional-access-policies.json")
-    secdef = ex.obj("security-defaults.json")
-    auth = ex.obj("authorization-policy.json")
+    secdef = ex.obj("security-defaults.json", expect=("isEnabled",))
+    auth = ex.obj("authorization-policy.json", expect=("allowInvitesFrom", "defaultUserRolePermissions"))
     role_defs = ex.list("role-definitions.json", "directory-roles.json")
     assignments = ex.list("role-assignments.json")
     eligible = ex.list("role-eligibility-schedule-instances.json")
@@ -448,6 +451,7 @@ def evaluate(folder: str, cfg: dict, now) -> tuple[dict, Export, set[str]]:
     graph_assignments = ex.list("graph-app-role-assignments.json")
     signins = ex.list("signins.json")
     audits = ex.list("directory-audits.json")
+    ex.require_any()
     d = Directory(users, sps, role_defs)
     findings: list[dict] = []
     findings += check_ca(policies, secdef, cfg, d)

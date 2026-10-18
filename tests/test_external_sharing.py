@@ -105,3 +105,21 @@ def test_bad_input(tmp_path, write):
     assert rc == 2 and "users.json" in err
     rc, _, err = run_main(mod, [str(T), "--config", str(write("c.yaml", 'sensitive_pattern: "(unclosed"\n'))])
     assert rc == 2 and "sensitive_pattern" in err
+
+
+def test_settings_file_of_the_wrong_shape_is_bad_input(tmp_path):
+    """A sharepoint-settings.json without any sharepointSettings property (for example the Teams output saved under the
+    wrong name) used to be read as "nothing is shared" and hid SHARING-ANYONE."""
+    folder = tmp_path / "t"
+    shutil.copytree(T, folder)
+    (folder / "sharepoint-settings.json").write_text(json.dumps({"AllowFederatedUsers": True}), encoding="utf-8")
+    rc, out, err = run_main(mod, [str(folder), *BASE])
+    assert rc == 2 and out == "" and "sharepoint-settings.json" in err and "sharingCapability" in err
+
+
+def test_documented_sharing_capability_values():
+    """sharepointSettings.sharingCapability values from the Graph v1.0 reference: only externalUserAndGuestSharing
+    allows anyone links."""
+    for value, expected in (("externalUserAndGuestSharing", True), ("externalUserSharingOnly", False),
+                            ("existingExternalUserSharingOnly", False), ("disabled", False)):
+        assert (mod.sharing_level(value) == "externaluserandguestsharing") is expected

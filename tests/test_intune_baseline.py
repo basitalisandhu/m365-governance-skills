@@ -79,3 +79,24 @@ def test_min_severity_and_fail_on():
     rc, rep = run_json(mod, [str(IN / "estate"), *BASE, "--min-severity", "HIGH", "--fail-on", "CRITICAL"])
     assert rc == 0
     assert {f["severity"] for f in rep["findings"]} == {"HIGH"}
+
+
+def test_defender_check_needs_the_beta_schema(tmp_path):
+    """windows10CompliancePolicy in Graph v1.0 has no defenderEnabled, antivirusRequired or deviceThreatProtectionEnabled
+    (they are beta-only), so a v1.0 export must not raise BASE-DEFENDER; the report says why it was not evaluated."""
+    import shutil
+
+    folder = tmp_path / "v1"
+    shutil.copytree(IN / "estate", folder)
+    path = folder / "compliance-policies.json"
+    data = json.loads(path.read_text(encoding="utf-8"))
+    for p in data["value"]:
+        for key in ("defenderEnabled", "antivirusRequired", "deviceThreatProtectionEnabled"):
+            p.pop(key, None)
+    path.write_text(json.dumps(data), encoding="utf-8")
+    _, rep = run_json(mod, [str(folder), *BASE])
+    assert subjects(rep, "BASE-DEFENDER") == []
+    assert any(s.startswith("BASE-DEFENDER (Windows)") and "/beta" in s for s in rep["skipped"])
+    # The beta-shaped estate fixture (defenderEnabled false) still raises it.
+    _, beta = run_json(mod, [str(IN / "estate"), *BASE])
+    assert subjects(beta, "BASE-DEFENDER") == ["Windows"]

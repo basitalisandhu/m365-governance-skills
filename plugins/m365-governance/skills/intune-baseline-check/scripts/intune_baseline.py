@@ -23,6 +23,7 @@ Checks (id, default severity):
   BASE-PASSWORD             HIGH    no assigned policy for the platform requires a password or PIN
   BASE-JAILBREAK            HIGH    no assigned policy blocks jailbroken or rooted devices (iOS, Android)
   BASE-DEFENDER             MEDIUM  no assigned Windows policy requires Defender, antivirus or a device threat level
+                                    (these fields are in the beta schema only; a v1.0 export lists it as not evaluated)
   PROF-ALL-DEVICES          LOW     a configuration profile or policy is assigned to All devices or All users with no exclusion
   INTUNE-NOT-SECURE-DEFAULT MEDIUM  devices with no compliance policy are reported as compliant (settings.secureByDefault false)
 
@@ -84,6 +85,9 @@ CONTROLS = {
     "BASE-DEFENDER": ({"Windows"}, ("defenderEnabled", "antivirusRequired", "deviceThreatProtectionEnabled"), "MEDIUM",
                       "Defender, antivirus or device threat level required"),
 }
+# Controls whose policy fields exist only in the Graph beta schema. windows10CompliancePolicy in v1.0 has no
+# defenderEnabled, antivirusRequired or deviceThreatProtectionEnabled, so a v1.0 export can neither pass nor fail them.
+BETA_ONLY = {"BASE-DEFENDER"}
 BAD_STATES = {"noncompliant", "error", "conflict"}
 PORTAL_COMPLIANCE = "Intune admin center > Devices > Compliance > Policies"
 PORTAL_DEVICES = "Intune admin center > Devices > All devices"
@@ -160,8 +164,10 @@ def assigned(item: dict) -> bool:
     return any(str((a.get("target") or {}).get("@odata.type", "")) != EXCLUDE_TARGET for a in item.get("assignments") or [])
 
 
-def check_policies(policies: list[dict] | None, platforms: set[str]) -> tuple[list[dict], dict[str, list[str]]]:
+def check_policies(policies: list[dict] | None, platforms: set[str],
+                   notes: list[str] | None = None) -> tuple[list[dict], dict[str, list[str]]]:
     out: list[dict] = []
+    notes = notes if notes is not None else []
     per_platform: dict[str, list[str]] = {p: [] for p in platforms}
     if policies is None:
         return out, per_platform
@@ -182,6 +188,10 @@ def check_policies(policies: list[dict] | None, platforms: set[str]) -> tuple[li
                                "no assigned policy of a matching type", PORTAL_COMPLIANCE + " > Create policy"))
             continue
         for check, (applies, fields, sev, what) in CONTROLS.items():
+            if plat in applies and check in BETA_ONLY and not any(f in p for p in live for f in fields):
+                notes.append(f"{check} ({plat}): the assigned policies carry none of {', '.join(fields)}; these fields exist only "
+                             "in the Graph beta schema, so export compliance-policies.json from /beta to evaluate it")
+                continue
             if plat in applies and not any(satisfied(p, fields) for p in live):
                 out.append(finding(check, sev, plat, f"No assigned {plat} compliance policy has: {what}",
                                    "checked " + ", ".join(sorted(per_platform[plat])) + f" for {', '.join(fields)}",
@@ -230,10 +240,11 @@ def evaluate(folder: str, cfg: dict, now) -> tuple[dict, Export, set[str]]:
     policies = ex.list("compliance-policies.json")
     profiles = ex.list("configuration-profiles.json")
     catalog = ex.list("configuration-policies.json")
-    settings = ex.obj("device-management-settings.json")
+    settings = ex.obj("device-management-settings.json", expect=("settings", "secureByDefault"))
     platforms = {platform_of_device(d) for d in devices} & set(DEVICE_PLATFORM.values())
     findings = check_devices(devices, cfg, now)
-    pol_findings, per_platform = check_policies(policies, platforms)
+    skipped: list[str] = []
+    pol_findings, per_platform = check_policies(policies, platforms, skipped)
     findings += pol_findings
     findings += check_profiles(profiles, "configuration-profiles.json")
     findings += check_profiles(catalog, "configuration-policies.json")
@@ -244,7 +255,6 @@ def evaluate(folder: str, cfg: dict, now) -> tuple[dict, Export, set[str]]:
                                     "settings.secureByDefault is false",
                                     "Intune admin center > Devices > Compliance > Compliance settings > Mark devices with no compliance "
                                     "policy assigned as: Not compliant"))
-    skipped = []
     if policies is None:
         skipped.append("POL-UNASSIGNED and BASE-*: compliance-policies.json not found")
     rep = {"tool": "intune_baseline", "as_of": now.strftime("%Y-%m-%d"), "inputs": sorted(set(ex.used)),

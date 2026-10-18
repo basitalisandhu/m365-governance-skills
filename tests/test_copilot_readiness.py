@@ -7,7 +7,7 @@ import json
 import re
 
 import pytest
-from conftest import load_script, run_json, run_main
+from conftest import FIXTURES, load_script, run_json, run_main
 
 mod = load_script("copilot-oversharing-readiness", "copilot_readiness.py")
 LABEL = "00000000-0000-0000-0000-000000000501"
@@ -173,3 +173,53 @@ def test_help_lists_checks_and_exit_codes():
     assert rc == 0
     for word in ("SITE-EVERYONE-GRANT", "TENANT-NO-DLP", "Exit codes", "--redact", "--json", "--out"):
         assert word in out
+
+
+FIXTURE = str(FIXTURES / "copilot" / "tenant")
+
+
+def test_fixture_folder_documented_command():
+    """The hand-written fixture uses the documented export shapes: PnP sites, site groups and tenant, Graph permission
+    objects (link.scope anonymous, organization, users, existingAccess) and Get-DlpCompliancePolicy rows."""
+    rc, rep = run_json(mod, [FIXTURE, "--as-of", "2026-10-18", "--org-links", "1", "--json"])
+    assert rc == 1 and rep["rating"] == "not ready"
+    got = sorted((f["check"], f["site"].rsplit("/", 1)[-1]) for f in rep["findings"])
+    assert got == [
+        ("SITE-ANYONE-LINKS", "finance"), ("SITE-ANYONE-SHARING-ON", "project-falcon"), ("SITE-EVERYONE-GRANT", "finance"),
+        ("SITE-EVERYONE-GRANT", "intranet"), ("SITE-INACTIVE-BROAD", "finance"), ("SITE-NO-LABEL", "finance"),
+        ("SITE-NO-OWNER", "project-falcon"), ("SITE-ORG-LINKS", "project-falcon"), ("TENANT-ANYONE-NO-EXPIRY", "tenant"),
+        ("TENANT-DEFAULT-LINK-BROAD", "tenant"), ("TENANT-DLP-TEST-ONLY", "tenant")]
+
+
+@pytest.mark.parametrize("name,content,message", [
+    ("sharing-links.json", '{"foo": 1}', "expected properties (link, siteurl)"),
+    ("sharing-links.json", '{"value": "x"}', '"value" must be a list'),
+    ("tenant.json", '{"foo": 1}', "expected properties"),
+    ("tenant.json", "[]", "holds no object"),
+    ("dlp-policies.json", '[{"foo": 1}]', "expected properties (name, mode, enabled)"),
+    ("labels.json", '[{"DisplayName": "General"}]', "expected properties (id)"),
+    ("sites.json", "", "file is empty"),
+    ("site-groups.json", "SiteUrl,Title\nx,y\n", "invalid JSON"),
+])
+def test_wrong_shape_exports_are_bad_input(tmp_path, name, content, message):
+    import shutil
+
+    folder = tmp_path / "t"
+    shutil.copytree(FIXTURE, folder)
+    (folder / name).write_text(content, encoding="utf-8")
+    rc, out, err = run_main(mod, [str(folder), "--as-of", "2026-10-18"])
+    assert rc == 2 and out == "" and name in err and message in err
+
+
+def test_label_ids_match_case_insensitively(tmp_path):
+    import shutil
+
+    folder = tmp_path / "t"
+    shutil.copytree(FIXTURE, folder)
+    (folder / "labels.json").write_text('[{"Id": "00000000-0000-0000-0000-0000000005AB", "Name": "Finance confidential"}]', encoding="utf-8")
+    sites = json.loads((folder / "sites.json").read_text(encoding="utf-8"))
+    sites[1]["SensitivityLabel"] = "00000000-0000-0000-0000-0000000005ab"
+    (folder / "sites.json").write_text(json.dumps(sites), encoding="utf-8")
+    _, rep = run_json(mod, [str(folder), "--as-of", "2026-10-18", "--json"])
+    row = next(r for r in rep["site_summary"] if r["site"].endswith("project-falcon"))
+    assert row["label"] == "Finance confidential" and row["sensitive"] is True

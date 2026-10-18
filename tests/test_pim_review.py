@@ -108,3 +108,30 @@ def test_markdown_score_table_and_redact():
 def test_required_inputs(tmp_path):
     rc, _, err = run_main(mod, [str(tmp_path)])
     assert rc == 2 and "role-definitions.json" in err
+
+
+def test_single_string_config_lists_are_one_item_lists(write):
+    """`break_glass: ana@example.com` used to be read letter by letter, so no account matched."""
+    as_list = write("a.yaml", "break_glass: [breakglass1@example.com, ga.daily@example.com]\ndaily_use_exempt: [ga.daily@example.com]\n")
+    as_str = write("b.yaml", "break_glass: [breakglass1@example.com, ga.daily@example.com]\ndaily_use_exempt: ga.daily@example.com\n")
+    _, rep_list = run_json(mod, [str(T), "--config", str(as_list), "--as-of", "2026-10-04", "--json"])
+    _, rep_str = run_json(mod, [str(T), "--config", str(as_str), "--as-of", "2026-10-04", "--json"])
+    assert rep_str["findings"] == rep_list["findings"]
+    one_role = write("r.yaml", "privileged_roles: Global Administrator\n")
+    _, rep = run_json(mod, [str(T), "--config", str(one_role), "--as-of", "2026-10-04", "--json"])
+    severities = {f["severity"] for f in checks(rep, "PIM-PERMANENT-PRIVILEGED")}
+    assert severities == {"CRITICAL"}  # only the one configured role (Global Administrator) counts as privileged
+
+
+def test_config_list_of_wrong_type_is_bad_input(write):
+    for text in ("daily_use_exempt: 5\n", "break_glass: {a: b}\n", "privileged_roles: [[Global Administrator]]\n"):
+        rc, out, err = run_main(mod, [str(T), "--config", str(write("c.yaml", text)), "--as-of", "2026-10-04"])
+        assert rc == 2 and out == "" and "must be a list of names or ids" in err and "Traceback" not in err
+
+
+def test_wrong_shape_role_assignments_are_bad_input(tmp_path):
+    folder = tmp_path / "t"
+    shutil.copytree(T, folder)
+    (folder / "role-assignments.json").write_text('{"value": {"id": "x"}}', encoding="utf-8")
+    rc, _, err = run_main(mod, [str(folder), "--as-of", "2026-10-04"])
+    assert rc == 2 and "role-assignments.json" in err and "list of objects" in err

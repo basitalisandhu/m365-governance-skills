@@ -132,3 +132,28 @@ def test_bad_input_exit_2(write, tmp_path):
     cfg = write("c.yaml", "unknown_key: 1\n")
     rc, _, err = run_main(mod, [INSECURE, "--config", str(cfg)])
     assert rc == 2 and "unknown config keys" in err
+
+
+def test_legacy_sign_ins_match_documented_client_app_values(write):
+    """signIn.clientAppUsed in the Graph v1.0 reference lists legacy clients as "Exchange ActiveSync", "IMAP", "MAPI",
+    "SMTP", "POP" and "other clients" (lower case); each must count, while "Browser" must not."""
+    rows = [{"id": f"s{i}", "createdDateTime": "2026-10-01T08:00:00Z", "userPrincipalName": f"u{i}@example.com",
+             "clientAppUsed": client, "status": {"errorCode": 0}}
+            for i, client in enumerate(["IMAP", "POP", "MAPI", "SMTP", "other clients", "Exchange ActiveSync", "Browser"])]
+    rows.append({"id": "s9", "createdDateTime": "2026-10-01T08:00:00Z", "userPrincipalName": "fail@example.com",
+                 "clientAppUsed": "IMAP", "status": {"errorCode": 50126}})
+    write("signins.json", json.dumps({"value": rows}))
+    _, rep = run_json(mod, [str(write("x", "").parent), "--json", "--as-of", "2026-10-04"])
+    assert sorted(f["subject"] for f in checks(rep, "SIGNIN-LEGACY-USED")) == [f"u{i}@example.com" for i in range(6)]
+
+
+def test_empty_folder_and_wrong_shape_are_bad_input(write, tmp_path):
+    rc, out, err = run_main(mod, [str(tmp_path)])
+    assert rc == 2 and out == "" and "no known export file" in err
+    write("security-defaults.json", json.dumps({"foo": 1}))
+    rc, _, err = run_main(mod, [str(tmp_path)])
+    assert rc == 2 and "isEnabled" in err
+    write("security-defaults.json", json.dumps({"isEnabled": True}))
+    write("users.json", json.dumps({"value": "not a list"}))
+    rc, _, err = run_main(mod, [str(tmp_path)])
+    assert rc == 2 and "users.json" in err and "list of objects" in err

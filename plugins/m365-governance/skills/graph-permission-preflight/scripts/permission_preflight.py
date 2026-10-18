@@ -195,11 +195,11 @@ def collect(ex: Export, resolver: Resolver) -> tuple[list[dict], dict]:
             perms[key] = {"name": name, "type": ptype, "resource": resource, "requested": False, "granted": False, "consent": []}
         return perms[key]
 
-    app = ex.obj("application.json")
-    sp = ex.obj("service-principal.json")
+    app = ex.obj("application.json", expect=("requiredResourceAccess", "appId"))
+    sp = ex.obj("service-principal.json", expect=("id", "appId"))
     grants = ex.list("oauth2-permission-grants.json")
     assignments = ex.list("app-role-assignments.json")
-    declared = ex.obj("declared-permissions.json")
+    declared = ex.obj("declared-permissions.json", expect=("permissions",))
     identity = {"app": (app or sp or declared or {}).get("displayName") or (declared or {}).get("app") or "?",
                 "app_id": (app or sp or {}).get("appId", ""), "sp_id": (sp or {}).get("id", "")}
     if app is None and sp is None and grants is None and assignments is None and declared is None:

@@ -1,6 +1,6 @@
 ---
 name: entra-posture-review
-description: "Review a Microsoft Entra ID tenant's identity posture from read-only Graph exports, checking Conditional Access basics, security defaults, standing Global Administrators, guests with roles, stale guests, long-lived app secrets, high-risk Graph application permissions, consent and invitation settings and legacy sign-ins. Use when asked \"who are our Global Admins?\", to baseline a tenant, before an ISO 27001 or Essential Eight audit, or after taking one over. Not for Intune devices (intune-baseline-check), one app's permissions (graph-permission-preflight), or incident response."
+description: "Review a Microsoft Entra ID tenant's identity posture from read-only Graph exports: Conditional Access basics, security defaults, standing Global Administrators, guests with roles, stale guests, long-lived app secrets, high-risk Graph application permissions, consent and invitation settings and legacy sign-ins. Use when asked \"who are our Global Admins?\", to baseline a tenant before an Essential Eight audit, or after a handover. Not for checking the Graph permissions one app needs before consent (graph-permission-preflight), Intune devices, access review evidence, or incident response."
 license: MIT
 compatibility: Python 3.11 or newer on PATH as python3. The Microsoft Graph CLI (mgc) or any Graph client for the export step only; the script makes no network calls.
 metadata:

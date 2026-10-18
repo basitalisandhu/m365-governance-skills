@@ -53,6 +53,7 @@ from _graphio import (  # noqa: E402
     as_of_datetime,
     cell,
     cfg_int,
+    cfg_list,
     counts,
     days_since,
     dumps,
@@ -122,7 +123,7 @@ def evaluate(folder: str, cfg: dict, now) -> tuple[dict, Export, set[str]]:
     if not isinstance(pairs, list) or not all(isinstance(p, list) and len(p) == 2 for p in pairs):
         raise InputError("config overlapping_skus must be a list of [larger SKU, smaller SKU] pairs")
     pairs = {(str(a), str(b)) for a, b in pairs}
-    unwanted = {str(p) for p in cfg.get("unwanted_service_plans") or []}
+    unwanted = set(cfg_list(cfg, "unwanted_service_plans"))
     costs = cfg.get("unit_costs") or {}
     if not isinstance(costs, dict) or any(isinstance(v, bool) or not isinstance(v, (int, float)) for v in costs.values()):
         raise InputError("config unit_costs must map skuPartNumber to a number")

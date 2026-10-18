@@ -82,6 +82,8 @@ from _graphio import (  # noqa: E402
 CONFIG_KEYS = {"stale_days", "pending_days", "sensitive_pattern", "blocked_domains", "allowed_domains"}
 DEFAULT_SENSITIVE = r"(?i)(finance|payroll|hr|legal|security|board|admin|privileged)"
 # SharePoint SharingCapabilities, as ConvertTo-Json writes the enum (number) or as Graph writes it (camelCase name).
+SP_SETTINGS_KEYS = ("sharingCapability", "sharingDomainRestrictionMode", "isResharingByExternalUsersEnabled",
+                    "sharingAllowedDomainList", "sharingBlockedDomainList")
 SHARING = {0: "disabled", 1: "externalusersharingonly", 2: "externaluserandguestsharing", 3: "existingexternalusersharingonly"}
 SPO_PORTAL = "SharePoint admin center > Policies > Sharing"
 TEAMS_PORTAL = "Teams admin center > Users > External access"
@@ -189,9 +191,9 @@ def evaluate(folder: str, cfg: dict, now) -> tuple[dict, Export, set[str]]:
     groups = ex.list("groups.json")
     members = ex.dir_lists("group-members")
     audits = ex.list("directory-audits.json")
-    sp = ex.obj("sharepoint-settings.json")
-    spo = ex.obj("spo-tenant.json")
-    fed = ex.obj("teams-federation.json")
+    sp = ex.obj("sharepoint-settings.json", expect=SP_SETTINGS_KEYS)
+    spo = ex.obj("spo-tenant.json", expect=("SharingCapability", "OneDriveSharingCapability", "RequireAnonymousLinksExpireInDays"))
+    fed = ex.obj("teams-federation.json", expect=("AllowFederatedUsers", "AllowTeamsConsumer", "AllowedDomains", "BlockedDomains"))
     stale_days = cfg_int(cfg, "stale_days", 90)
     pending_days = cfg_int(cfg, "pending_days", 30)
     try:

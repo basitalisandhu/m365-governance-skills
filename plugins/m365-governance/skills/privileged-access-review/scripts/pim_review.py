@@ -64,6 +64,7 @@ from _graphio import (  # noqa: E402
     as_of_datetime,
     cell,
     cfg_int,
+    cfg_list,
     counts,
     days_since,
     dumps,
@@ -140,9 +141,9 @@ class Holders:
             for key in ("id", "templateId"):
                 if r.get(key):
                     self.roles[r[key]] = r.get("displayName", r[key])
-        self.privileged = set(cfg.get("privileged_roles") or PRIVILEGED_ROLE_NAMES)
-        self.break_glass = self.ids(cfg.get("break_glass") or [])
-        self.exempt = self.ids(cfg.get("daily_use_exempt") or [])
+        self.privileged = set(cfg_list(cfg, "privileged_roles") or PRIVILEGED_ROLE_NAMES)
+        self.break_glass = self.ids(cfg_list(cfg, "break_glass"))
+        self.exempt = self.ids(cfg_list(cfg, "daily_use_exempt"))
 
     def ids(self, entries) -> set[str]:
         out = set()

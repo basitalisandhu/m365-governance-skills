@@ -57,6 +57,7 @@ from _graphio import (  # noqa: E402
     as_of_datetime,
     cell,
     cfg_int,
+    cfg_list,
     counts,
     days_since,
     dumps,
@@ -111,6 +112,9 @@ def compile_re(cfg: dict, key: str, default: str | None) -> re.Pattern | None:
 def activity_index(rows: list[dict] | None) -> dict[str, str]:
     """Map team id (and name, lower-cased) to the last activity date string ('' when none in the period)."""
     out: dict[str, str] = {}
+    if rows and not ({"Team Id", "Team Name"} & set(rows[0]) and "Last Activity Date" in rows[0]):
+        raise InputError("teams-activity.csv: expected the getTeamsTeamActivityDetail columns Team Id or Team Name and "
+                         f"Last Activity Date; got {', '.join(sorted(k for k in rows[0] if k)[:6]) or 'no header'}")
     for r in rows or []:
         last = (r.get("Last Activity Date") or "").strip()
         if r.get("Team Id"):
@@ -153,7 +157,7 @@ def evaluate(folder: str, cfg: dict, now) -> tuple[dict, Export, set[str]]:
     inactive = cfg_int(cfg, "inactive_days", 90)
     naming = compile_re(cfg, "naming_pattern", None)
     sensitive = compile_re(cfg, "sensitive_pattern", DEFAULT_SENSITIVE)
-    applies = {str(k) for k in cfg.get("naming_applies_to") or ["m365", "team"]}
+    applies = set(cfg_list(cfg, "naming_applies_to", ["m365", "team"]))
     if applies - KINDS:
         raise InputError(f"config naming_applies_to: unknown kinds {', '.join(sorted(applies - KINDS))}")
     findings: list[dict] = []

@@ -1,0 +1,20 @@
+[
+  {
+    "SiteUrl": "https://example.sharepoint.com/sites/finance",
+    "Title": "Finance Members",
+    "Roles": ["Edit"],
+    "Users": ["c:0-.f|rolemanager|spo-grid-all-users/00000000-0000-0000-0000-000000000001"]
+  },
+  {
+    "SiteUrl": "https://example.sharepoint.com/sites/project-falcon",
+    "Title": "Project Falcon Members",
+    "Roles": ["Edit"],
+    "Users": ["i:0#.f|membership|dan@example.com"]
+  },
+  {
+    "SiteUrl": "https://example.sharepoint.com/sites/intranet",
+    "Title": "Intranet Visitors",
+    "Roles": ["Read"],
+    "Users": ["c:0(.s|true"]
+  }
+]
