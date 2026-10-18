@@ -96,3 +96,14 @@ def test_bad_needs(write, tmp_path):
     empty.mkdir()
     rc, _, err = run_main(mod, [str(empty), "--needs", str(PF / "minimal" / "needs.yaml")])
     assert rc == 2 and "no permission source" in err
+
+
+def test_application_file_of_the_wrong_shape_is_bad_input(tmp_path):
+    """An application.json with neither requiredResourceAccess nor appId used to give a clean report."""
+    import shutil
+
+    folder = tmp_path / "t"
+    shutil.copytree(PF / "minimal", folder)
+    (folder / "application.json").write_text(json.dumps({"foo": 1}), encoding="utf-8")
+    rc, out, err = run_main(mod, [str(folder), "--needs", str(folder / "needs.yaml")])
+    assert rc == 2 and out == "" and "application.json" in err and "requiredResourceAccess" in err

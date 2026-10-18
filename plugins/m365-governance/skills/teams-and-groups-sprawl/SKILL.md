@@ -1,6 +1,6 @@
 ---
 name: teams-and-groups-sprawl
-description: "Report Microsoft Teams and Microsoft 365 group sprawl from read-only Graph exports. Find ownerless and single-owner groups, guest owners or members, public and inactive teams, empty groups, naming violations, and groups missing expiration policies. Suggest potential owners for orphaned groups based on member managers, as a draft only. Use when cleaning up groups, reviewing guest access, checking policies, or preparing a migration. Not for SharePoint permissions, sharing links, mailbox content, or deleting and archiving."
+description: "Report Microsoft Teams and Microsoft 365 group sprawl from read-only Graph exports: ownerless and single-owner groups, guest owners or members, public and inactive teams, empty groups, naming violations and groups missing an expiration policy, with owners proposed from member managers as a draft. Use when asked \"which teams have no owner?\", when cleaning up groups, or before a migration. Not for SharePoint permissions or sharing links (guest-and-external-sharing-review), mailbox content, or deleting and archiving groups."
 license: MIT
 compatibility: Python 3.11 or newer on PATH as python3. The Microsoft Graph CLI (mgc) or any Graph client for the export step only; the script makes no network calls.
 metadata:

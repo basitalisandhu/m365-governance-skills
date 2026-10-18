@@ -5,7 +5,7 @@ import importlib.util
 import json
 
 import pytest
-from conftest import ROOT
+from conftest import ROOT, SKILLS
 
 _spec = importlib.util.spec_from_file_location("validator_under_test", ROOT / "scripts" / "validate_plugins.py")
 validator = importlib.util.module_from_spec(_spec)
@@ -112,3 +112,26 @@ def test_every_skill_md_in_this_repository_meets_the_description_and_limits_rule
         text = path.read_text(encoding="utf-8")
         assert validator.description_problems(text) == [], str(path.relative_to(ROOT))
         assert validator.has_limits_section(text), str(path.relative_to(ROOT))
+
+
+def _skill_text(name):
+    return (SKILLS / name / "SKILL.md").read_text(encoding="utf-8")
+
+
+def test_subscribed_skus_export_names_the_least_privileged_permission():
+    """List subscribedSkus (Graph v1.0): least privileged is LicenseAssignment.Read.All; Organization.Read.All is higher."""
+    for name in ("license-and-service-plan-audit", "privileged-access-review"):
+        row = next(line for line in _skill_text(name).splitlines() if line.startswith("   | `subscribed-skus.json`"))
+        assert "LicenseAssignment.Read.All" in row, name
+
+
+def test_sensitivity_labels_export_uses_the_documented_beta_paths():
+    """List sensitivityLabels is beta only: delegated via /me (InformationProtectionPolicy.Read), tenant-wide app-only."""
+    row = next(line for line in _skill_text("copilot-oversharing-readiness").splitlines() if line.startswith("| `labels.json`"))
+    assert "/beta/me/security/informationProtection/sensitivityLabels" in row
+    assert "InformationProtectionPolicy.Read (delegated)" in row
+
+
+def test_every_skill_documents_its_exit_codes():
+    for skill in sorted(p.name for p in SKILLS.iterdir() if (p / "SKILL.md").is_file()):
+        assert "Exit code" in _skill_text(skill), skill

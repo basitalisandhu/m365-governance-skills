@@ -86,3 +86,32 @@ def test_reference_needs_manifest_loads():
     mod = load_script("graph-permission-preflight", "permission_preflight.py")
     manifest = mod.load_needs(str(SKILLS / "graph-permission-preflight" / "references" / "example-needs.yaml"))
     assert [(n["name"], n["type"]) for n in manifest["needs"]] == [("Calendars.Read", "Application"), ("User.Read", "Delegated")]
+
+
+def test_items_of_rejects_shapes_that_are_not_graph_collections():
+    with pytest.raises(gio.InputError, match="list of objects"):
+        gio.items_of({"value": "x"}, "f.json")
+    with pytest.raises(gio.InputError, match="without an id"):
+        gio.items_of({"foo": 1}, "f.json")
+    with pytest.raises(gio.InputError, match="error response"):
+        gio.items_of({"error": {"code": "Authorization_RequestDenied"}}, "f.json")
+    assert gio.items_of({"id": "1", "displayName": "one object"}) == [{"id": "1", "displayName": "one object"}]
+
+
+def test_obj_expect_keys_and_empty_file(tmp_path):
+    (tmp_path / "a.json").write_text('{"foo": 1}', encoding="utf-8")
+    (tmp_path / "b.json").write_text("", encoding="utf-8")
+    (tmp_path / "c.json").write_text('{"value": [{"isEnabled": true}]}', encoding="utf-8")
+    ex = gio.Export(tmp_path)
+    with pytest.raises(gio.InputError, match="isEnabled"):
+        ex.obj("a.json", expect=("isEnabled",))
+    with pytest.raises(gio.InputError, match="file is empty"):
+        ex.obj("b.json")
+    assert ex.obj("c.json", expect=("isEnabled",)) == {"isEnabled": True}
+
+
+def test_require_any_on_an_empty_folder(tmp_path):
+    ex = gio.Export(tmp_path)
+    ex.list("users.json")
+    with pytest.raises(gio.InputError, match="no known export file"):
+        ex.require_any()

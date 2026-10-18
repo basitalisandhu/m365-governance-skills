@@ -4,6 +4,26 @@ All notable changes to this project are documented here. The format follows Keep
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-10-18
+
+Skills quality pass: every script was run on its fixtures and on empty, wrong-format and wrong-shape inputs, and every Graph field and export command the checks rely on was checked against the current Microsoft Graph v1.0 reference (beta where the export uses beta).
+
+### Fixed
+
+- `access-review-pack`: service principal sign-in dates now read the documented beta names `applicationAuthenticationClientSignInActivity` and `applicationAuthenticationResourceSignInActivity`; the old names (`applicationClientSignInActivity`, `applicationResourceSignInActivity`) do not exist, so app-only sign-ins were missed. The fixture uses the documented shape.
+- `intune-baseline-check`: `BASE-DEFENDER` no longer fires on every v1.0 export. `defenderEnabled`, `antivirusRequired` and `deviceThreatProtectionEnabled` exist on `windows10CompliancePolicy` only in the beta schema; with a v1.0 export the check is listed under "Not evaluated", and SKILL.md gives the beta export that evaluates it.
+- `entra-posture-review`: `SIGNIN-LEGACY-USED` matches the legacy `clientAppUsed` values the v1.0 reference documents (`IMAP`, `POP`, `MAPI`, `SMTP`, `other clients`) case-insensitively, as well as the longer forms seen in sign-in logs.
+- All `_graphio` scripts: a collection file holding one object without an `id` (for example a saved Graph error response or a settings file under the wrong name), `{"value": ...}` that is not a list, an empty file, or a single-object export with none of its expected properties now exits 2 with a message naming the file, instead of being read as an empty or "everything off" tenant. `entra_posture.py` and `access_review_pack.py` exit 2 on a folder with no known export file instead of printing an empty report.
+- `copilot-oversharing-readiness`: `sharing-links.json`, `tenant.json`, `dlp-policies.json` and `labels.json` of the wrong shape exit 2 instead of hiding anyone links or DLP state; an empty `tenant.json` list no longer crashes; label ids match case-insensitively. Compatibility line corrected to Python 3.11.
+- `privileged-access-review`, `license-and-service-plan-audit`, `teams-and-groups-sprawl`: a config list given as a single string (`break_glass: ana@example.com`, `unwanted_service_plans: SWAY`, `naming_applies_to: team`) is a one-item list instead of being read letter by letter; a number or mapping there exits 2 (it raised a traceback for `daily_use_exempt`). `teams-activity.csv` without the `Team Id` or `Team Name` and `Last Activity Date` columns exits 2 instead of silently dropping `TEAM-INACTIVE`.
+
+### Changed
+
+- Export tables: `subscribed-skus.json` names `LicenseAssignment.Read.All`, the least-privileged permission for List subscribedSkus (`Organization.Read.All` still works); the Copilot labels export uses the documented beta paths (`/beta/me/security/informationProtection/sensitivityLabels` with `InformationProtectionPolicy.Read`, the tenant-wide path is application-only).
+- Descriptions of `entra-posture-review`, `access-review-pack` and `teams-and-groups-sprawl` rewritten: the trigger eval (lexical proxy, cross negatives) moves `entra-posture-review` precision from 0.71 to 1.00 and `access-review-pack` recall from 0.80 to 1.00; `teams-and-groups-sprawl` gains a quoted user phrase.
+- Exit codes are documented in every SKILL.md, the README and the plugin README; the plugin README carries real output samples for three skills, and `tests/fixtures/copilot/tenant` gives the Copilot skill a fixture folder.
+- Tests: 194 to 229. Version 0.5.1 in `pyproject.toml`, `plugin.json`, `marketplace.json`, the dispatcher and the README container examples.
+
 ## [0.5.0] - 2026-10-13
 
 ### Added

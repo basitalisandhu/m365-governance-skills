@@ -1,0 +1,32 @@
+[
+  {
+    "Url": "https://example.sharepoint.com/sites/finance",
+    "Title": "Finance",
+    "Owner": "i:0#.f|membership|fay@example.com",
+    "OwnerEmail": "fay@example.com",
+    "SharingCapability": "ExternalUserSharingOnly",
+    "SensitivityLabel": "",
+    "LastContentModifiedDate": "2025-01-10T09:00:00Z",
+    "RestrictContentOrgWideSearch": false
+  },
+  {
+    "Url": "https://example.sharepoint.com/sites/project-falcon",
+    "Title": "Project Falcon",
+    "Owner": "",
+    "OwnerEmail": "",
+    "SharingCapability": "ExternalUserAndGuestSharing",
+    "SensitivityLabel": "00000000-0000-0000-0000-000000000501",
+    "LastContentModifiedDate": "2026-09-20T09:00:00Z",
+    "RestrictContentOrgWideSearch": false
+  },
+  {
+    "Url": "https://example.sharepoint.com/sites/intranet",
+    "Title": "Intranet",
+    "Owner": "i:0#.f|membership|carl@example.com",
+    "OwnerEmail": "carl@example.com",
+    "SharingCapability": "Disabled",
+    "SensitivityLabel": "00000000-0000-0000-0000-000000000501",
+    "LastContentModifiedDate": "2026-10-01T09:00:00Z",
+    "RestrictContentOrgWideSearch": false
+  }
+]

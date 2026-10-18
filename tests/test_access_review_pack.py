@@ -1,4 +1,5 @@
 import csv
+import shutil
 
 from conftest import FIXTURES, load_script, run_json, run_main
 
@@ -81,9 +82,36 @@ def test_redacted_pack_has_no_upns(tmp_path):
     assert "@example.com" not in text and "Ana Example" not in text
 
 
-def test_missing_sections_are_listed(tmp_path):
+def test_missing_sections_are_listed(write, tmp_path):
+    write("users.json", '{"value": [{"id": "00000000-0000-0000-0000-000000000101", "userPrincipalName": "ana@example.com"}]}')
     rc, out, _ = run_main(mod, [str(tmp_path)])
     assert rc == 0 and "## Not included" in out
+
+
+def test_empty_folder_is_bad_input(tmp_path):
+    rc, out, err = run_main(mod, [str(tmp_path)])
+    assert rc == 2 and out == "" and "no known export file" in err
+
+
+def test_service_principal_sign_ins_use_documented_beta_names(tmp_path):
+    """servicePrincipalSignInActivity (Graph beta) names the app-only dates applicationAuthenticationClientSignInActivity
+    and applicationAuthenticationResourceSignInActivity; a row with only those must still give a date."""
+    folder = tmp_path / "t"
+    shutil.copytree(T, folder)
+    (folder / "service-principal-sign-ins.json").write_text(
+        '{"value": [{"id": "x1", "appId": "00000000-0000-0000-0000-000000000a44",'
+        ' "applicationAuthenticationClientSignInActivity": {"lastSignInDateTime": "2026-09-21T10:00:00Z"},'
+        ' "applicationAuthenticationResourceSignInActivity": {"lastSignInDateTime": "2026-09-01T10:00:00Z"}}]}',
+        encoding="utf-8")
+    _, rep = run_json(mod, [str(folder), *BASE, "--json"])
+    rows = {r["principal"]: r for r in rep["rows"] if r["section"] == "privileged-roles"}
+    assert rows["Example HR Provisioning"]["last_sign_in"] == "2026-09-21"
+
+
+def test_wrong_shape_file_is_bad_input(write, tmp_path):
+    write("users.json", '{"displayName": "not a collection"}')
+    rc, _, err = run_main(mod, [str(tmp_path)])
+    assert rc == 2 and "users.json" in err and "without an id" in err
 
 
 def test_bad_reviewers_config(write):

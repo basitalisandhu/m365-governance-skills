@@ -44,17 +44,31 @@ def load_json(path: Path):
         text = path.read_text(encoding="utf-8-sig")
     except OSError as exc:
         raise InputError(f"{path}: cannot read: {exc}") from exc
+    if not text.strip():
+        raise InputError(f"{path}: file is empty; re-run the export and save the JSON response")
     try:
         return json.loads(text)
     except json.JSONDecodeError as exc:
-        raise InputError(f"{path}: invalid JSON: {exc}") from exc
+        raise InputError(f"{path}: invalid JSON (save the command's --output json response unchanged): {exc}") from exc
 
 
 def items_of(data, where: str = "input") -> list[dict]:
-    """Return the list of objects in a Graph response, a bare list or a single object."""
-    if isinstance(data, dict) and isinstance(data.get("value"), list):
+    """Return the list of objects in a Graph response, a bare list or a single object.
+
+    A single object must look like a Graph object (it has an "id" or "@odata.type"); anything else, such as a
+    saved error response or a settings file in the wrong place, is bad input rather than a one-item collection.
+    """
+    if isinstance(data, dict) and "value" in data:
+        if not isinstance(data["value"], list):
+            raise InputError(f"{where}: \"value\" must be a list of objects, as in a Graph collection response")
         data = data["value"]
     elif isinstance(data, dict):
+        if "error" in data and "id" not in data:
+            raise InputError(f"{where}: holds a Graph error response, not exported data; re-run the export")
+        if "id" not in data and "@odata.type" not in data:
+            keys = ", ".join(sorted(data)[:5]) or "none"
+            raise InputError(f"{where}: expected a Graph collection ({{\"value\": [...]}}) or a list of objects; "
+                             f"got one object without an id (keys: {keys})")
         data = [data]
     if not isinstance(data, list):
         raise InputError(f"{where}: expected a JSON object, a list, or {{\"value\": [...]}}")
@@ -99,7 +113,9 @@ class Export:
         self.used.append(p.name)
         return items_of(data, p.name)
 
-    def obj(self, *names: str) -> dict | None:
+    def obj(self, *names: str, expect: tuple[str, ...] = ()) -> dict | None:
+        """Read a single-object export. With `expect`, at least one of those keys must be present, so that a file
+        of the wrong shape is reported instead of being read as "every setting is off"."""
         p = self.path(*names)
         if p is None:
             self.missing.append(names[0])
@@ -107,10 +123,22 @@ class Export:
         data = load_json(p)
         self.used.append(p.name)
         if isinstance(data, dict) and isinstance(data.get("value"), list):
-            return data["value"][0] if data["value"] and isinstance(data["value"][0], dict) else {}
+            if data["value"] and not isinstance(data["value"][0], dict):
+                raise InputError(f"{p.name}: \"value\" must hold JSON objects")
+            data = data["value"][0] if data["value"] else {}
         if not isinstance(data, dict):
             raise InputError(f"{p.name}: expected a JSON object")
+        if "error" in data and not (set(expect) & set(data)):
+            raise InputError(f"{p.name}: holds a Graph error response, not exported data; re-run the export")
+        if expect and data and not (set(expect) & set(data)):
+            raise InputError(f"{p.name}: none of the expected properties ({', '.join(expect)}) is present; "
+                             "check that the right command was saved to this file")
         return data
+
+    def require_any(self) -> None:
+        """Bad input when not one known export file was found in the folder."""
+        if not self.used:
+            raise InputError(f"{self.folder}: no known export file found; see --help for the file names")
 
     def dir_lists(self, dirname: str) -> dict[str, list[dict]] | None:
         """Read <folder>/<dirname>/<id>.json files into {id: [objects]}."""
@@ -261,6 +289,19 @@ def cfg_int(cfg: dict, key: str, default: int) -> int:
     if isinstance(value, bool) or not isinstance(value, int) or value < 0:
         raise InputError(f"config {key} must be a non-negative integer")
     return value
+
+
+def cfg_list(cfg: dict, key: str, default: list | None = None) -> list[str]:
+    """A config list of names or ids. A single string is a one-item list, so `break_glass: ana@example.com` works
+    instead of being read letter by letter."""
+    value = cfg.get(key)
+    if value is None:
+        return list(default or [])
+    if isinstance(value, str):
+        return [value]
+    if not isinstance(value, list) or any(isinstance(v, (bool, dict, list)) or v is None for v in value):
+        raise InputError(f"config {key} must be a list of names or ids")
+    return [str(v) for v in value]
 
 
 def cell(value) -> str:

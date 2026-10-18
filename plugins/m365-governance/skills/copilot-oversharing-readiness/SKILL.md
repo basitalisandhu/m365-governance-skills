@@ -2,7 +2,7 @@
 name: copilot-oversharing-readiness
 description: "Score a Microsoft 365 tenant's readiness for a Copilot rollout against Microsoft's oversharing checks and produce a fix list per site owner, from read-only exports of SharePoint sites, sensitivity labels, Everyone grants, sharing links and DLP policies. Use when asked \"are we ready to turn on Copilot?\", before a Copilot pilot or before it widens. Not for tenant guest settings alone (guest-and-external-sharing-review), reading file contents, or changing any permission."
 license: MIT
-compatibility: Python 3.10 or newer on PATH as python3. PnP PowerShell, Security and Compliance PowerShell and any Microsoft Graph client for the export step only; the script makes no network calls.
+compatibility: Python 3.11 or newer on PATH as python3. PnP PowerShell, Security and Compliance PowerShell and any Microsoft Graph client for the export step only; the script makes no network calls.
 metadata:
   author: Muhammad Basit Ali
 ---
@@ -36,7 +36,7 @@ Sign in read-only: a SharePoint Administrator or Global Reader account for PnP, 
 | File | Read-only command | Permission |
 |---|---|---|
 | `sites.json` (required) | `Connect-PnPOnline -Url https://<tenant>-admin.sharepoint.com -Interactive` then `Get-PnPTenantSite -Detailed \| Select-Object Url,Title,Owner,OwnerEmail,SharingCapability,SensitivityLabel,LastContentModifiedDate,RestrictContentOrgWideSearch \| ConvertTo-Json -Depth 3 -EnumsAsStrings > sites.json` | SharePoint Administrator or Global Reader |
-| `labels.json` | `Get-PnPAvailableSensitivityLabel \| ConvertTo-Json -Depth 3 > labels.json`, or `GET https://graph.microsoft.com/beta/security/informationProtection/sensitivityLabels` with any Graph client | InformationProtectionPolicy.Read.All |
+| `labels.json` | `Get-PnPAvailableSensitivityLabel \| ConvertTo-Json -Depth 3 > labels.json`, or, signed in, `GET https://graph.microsoft.com/beta/me/security/informationProtection/sensitivityLabels` with any Graph client (the tenant-wide `/beta/security/informationProtection/sensitivityLabels` path needs an application permission) | InformationProtectionPolicy.Read (delegated); InformationProtectionPolicy.Read.All (application) |
 | `site-groups.json` | `Get-PnPTenantSite \| ForEach-Object { $u = $_.Url; Get-PnPSiteGroup -Site $u \| Select-Object @{n='SiteUrl';e={$u}},Title,Roles,Users } \| ConvertTo-Json -Depth 4 > site-groups.json` | SharePoint Administrator |
 | `sharing-links.json` | per library item, `GET https://graph.microsoft.com/v1.0/drives/{drive-id}/items/{item-id}/permissions`, adding `"siteUrl"` to each permission; only `link.scope` is read | Sites.Read.All |
 | `sharing-links.csv` (instead of the JSON) | columns `site_url,anyone_links,organization_links,specific_people_links`, one row per site, for example retyped from SharePoint admin center > Reports > Data access governance > Sharing links | SharePoint Administrator |

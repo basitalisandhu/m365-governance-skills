@@ -108,8 +108,8 @@ def last_service_principal_sign_in(activity: dict | None) -> str:
         "lastSignInActivity",
         "delegatedClientSignInActivity",
         "delegatedResourceSignInActivity",
-        "applicationClientSignInActivity",
-        "applicationResourceSignInActivity",
+        "applicationAuthenticationClientSignInActivity",
+        "applicationAuthenticationResourceSignInActivity",
     ):
         item = activity.get(name) or {}
         date = parse_dt(item.get("lastSignInDateTime"))
@@ -138,6 +138,7 @@ def build(folder: str, cfg: dict, now) -> tuple[dict, Export, set[str]]:
     groups = ex.list("groups.json")
     group_owners = ex.dir_lists("group-owners")
     group_members = ex.dir_lists("group-members")
+    ex.require_any()
     window = cfg_int(cfg, "credential_window_days", 90)
     reviewers = cfg.get("reviewers") or {}
     if not isinstance(reviewers, dict) or set(reviewers) - set(SECTIONS):

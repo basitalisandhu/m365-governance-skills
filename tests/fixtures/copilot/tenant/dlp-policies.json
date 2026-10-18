@@ -1,0 +1,4 @@
+[
+  {"Name": "Baseline financial data", "Mode": "TestWithNotifications", "Enabled": true, "Workload": "SharePoint, OneDriveForBusiness",
+   "SharePointLocation": [{"Name": "All"}], "OneDriveLocation": [{"Name": "All"}]}
+]

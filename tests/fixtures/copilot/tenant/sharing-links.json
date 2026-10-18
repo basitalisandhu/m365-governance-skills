@@ -1,0 +1,12 @@
+{
+  "value": [
+    {"id": "aTowIy5mfG1lbWJlcnNoaXB8YTE", "roles": ["read"], "siteUrl": "https://example.sharepoint.com/sites/finance",
+     "link": {"scope": "anonymous", "type": "view", "webUrl": "https://example.sharepoint.com/:x:/s/finance/EaBcD?e=abc123"}},
+    {"id": "aTowIy5mfG1lbWJlcnNoaXB8YTI", "roles": ["write"], "siteUrl": "https://example.sharepoint.com/sites/project-falcon",
+     "link": {"scope": "organization", "type": "edit", "webUrl": "https://example.sharepoint.com/:w:/s/project-falcon/EfGh"}},
+    {"id": "aTowIy5mfG1lbWJlcnNoaXB8YTM", "roles": ["read"], "siteUrl": "https://example.sharepoint.com/sites/project-falcon",
+     "link": {"scope": "users", "type": "view", "webUrl": "https://example.sharepoint.com/:w:/s/project-falcon/EiJk"}},
+    {"id": "aTowIy5mfG1lbWJlcnNoaXB8YTQ", "roles": ["read"], "siteUrl": "https://example.sharepoint.com/sites/intranet",
+     "link": {"scope": "existingAccess", "type": "view", "webUrl": "https://example.sharepoint.com/:w:/s/intranet/ElMn"}}
+  ]
+}
