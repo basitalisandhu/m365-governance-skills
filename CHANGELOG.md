@@ -4,6 +4,10 @@ All notable changes to this project are documented here. The format follows Keep
 
 ## [Unreleased]
 
+### Added
+
+- `entra-posture-review`: `CA-EMPTY-TARGET` (LOW) flags enabled Conditional Access policies with no included users, groups, roles or guest/external-user target, without treating disabled or report-only policies as enforcing (#6).
+
 ## [0.5.1] - 2026-10-18
 
 Skills quality pass: every script was run on its fixtures and on empty, wrong-format and wrong-shape inputs, and every Graph field and export command the checks rely on was checked against the current Microsoft Graph v1.0 reference (beta where the export uses beta).
