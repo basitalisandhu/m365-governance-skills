@@ -4,6 +4,10 @@ All notable changes to this project are documented here. The format follows Keep
 
 ## [Unreleased]
 
+### Added
+
+- `entra-posture-review`: `CA-EMPTY-TARGET` (LOW) flags enabled Conditional Access policies with no included users, groups, roles or guest/external-user target, without treating disabled or report-only policies as enforcing (#6).
+
 ## [0.6.0] - 2026-10-26
 
 Second deep pass: trigger evaluation of every description, seeded fuzz tests on every export parser, an end-to-end test across four skills, a performance check on inputs ten to a thousand times the fixtures, and a README with a real sample in every skill folder.

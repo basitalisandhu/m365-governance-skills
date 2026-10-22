@@ -1,5 +1,6 @@
 import json
 
+import pytest
 from conftest import FIXTURES, load_script, run_json, run_main
 
 mod = load_script("entra-posture-review", "entra_posture.py")
@@ -11,6 +12,43 @@ BASE = ["--config", CFG, "--as-of", "2026-10-04", "--json"]
 
 def checks(rep, check):
     return [f for f in rep["findings"] if f["check"] == check]
+
+
+def test_enabled_policy_without_target_is_reported():
+    policies = json.loads((FIXTURES / "entra" / "empty-target-policies.json").read_text(encoding="utf-8"))
+    findings = mod.check_ca(policies, None, {}, mod.Directory([], [], []))
+    empty = [f for f in findings if f["check"] == "CA-EMPTY-TARGET"]
+    assert len(empty) == 1 and empty[0]["subject"] == "MFA without users"
+    assert empty[0]["severity"] == "LOW" and "include" in empty[0]["evidence"]
+
+
+@pytest.mark.parametrize("users", [
+    {"includeUsers": ["All"]},
+    {"includeUsers": ["00000000-0000-0000-0000-000000000101"]},
+    {"includeGroups": ["00000000-0000-0000-0000-000000000102"]},
+    {"includeRoles": [mod.GLOBAL_ADMIN_TEMPLATE]},
+    {"includeGuestsOrExternalUsers": {"guestOrExternalUserTypes": "internalGuest",
+                                     "externalTenants": {"membershipKind": "all"}}},
+])
+def test_nonempty_policy_targets_are_not_flagged(users):
+    policy = {"id": "p1", "state": "enabled", "conditions": {"users": users}}
+    findings = mod.check_ca([policy], None, {}, mod.Directory([], [], []))
+    assert not any(f["check"] == "CA-EMPTY-TARGET" for f in findings)
+
+
+@pytest.mark.parametrize("state", ["disabled", "enabledForReportingButNotEnforced"])
+def test_empty_target_on_non_enforcing_policy_is_not_flagged(state):
+    findings = mod.check_ca([{"id": "p1", "state": state}], None, {}, mod.Directory([], [], []))
+    assert not any(f["check"] == "CA-EMPTY-TARGET" for f in findings)
+
+
+def test_empty_target_cli_exit_code_and_redaction(write):
+    policies = json.loads((FIXTURES / "entra" / "empty-target-policies.json").read_text(encoding="utf-8"))
+    policies[0]["displayName"] = "owner@example.com"
+    root = write("conditional-access-policies.json", json.dumps({"value": policies})).parent
+    rc, rep = run_json(mod, [str(root), "--json", "--redact", "--fail-on", "LOW"])
+    assert rc == 1 and len(checks(rep, "CA-EMPTY-TARGET")) == 1
+    assert "owner@example.com" not in json.dumps(rep)
 
 
 def test_disabled_users_with_active_and_eligible_roles_are_reported():
