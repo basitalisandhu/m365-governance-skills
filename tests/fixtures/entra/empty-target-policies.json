@@ -1,0 +1,16 @@
+[
+  {
+    "id": "00000000-0000-0000-0000-000000000201",
+    "displayName": "MFA without users",
+    "state": "enabled",
+    "conditions": {"users": {}, "applications": {"includeApplications": ["All"]}},
+    "grantControls": {"operator": "OR", "builtInControls": ["mfa"]}
+  },
+  {
+    "id": "00000000-0000-0000-0000-000000000202",
+    "displayName": "MFA with a target",
+    "state": "enabled",
+    "conditions": {"users": {"includeUsers": ["All"]}, "applications": {"includeApplications": ["All"]}},
+    "grantControls": {"operator": "OR", "builtInControls": ["mfa"]}
+  }
+]
