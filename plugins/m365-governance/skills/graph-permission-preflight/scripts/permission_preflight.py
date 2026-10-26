@@ -10,6 +10,10 @@ Input folder (each file optional, at least one permission source needed):
                                    the resource API's appRoles and oauth2PermissionScopes, used to turn permission ids into names
   declared-permissions.json        for a third-party connector that publishes its permission list instead:
                                    {"app": "name", "permissions": [{"name": "Mail.ReadWrite", "type": "Application"}]}
+  consent-url.txt                  or the admin consent or sign-in link a vendor sent, one URL on a line. The scope parameter
+                                   (space- or +-separated, for example https://graph.microsoft.com/Mail.Read offline_access)
+                                   is parsed as requested delegated permissions; the link is never opened. A .default scope
+                                   only says "what the app registration lists", so the script warns and asks for application.json.
 
 Needs manifest (--needs, YAML or JSON), written for the task before anything is consented:
   task: Read the shared events calendar into the booking tool
@@ -30,6 +34,8 @@ Checks (id, default severity):
   CONSENT-USER            INFO           delegated permissions consented by one user for themselves (MEDIUM when high risk)
   CONSENT-PENDING         INFO           requested permissions with no grant yet (consent has not happened)
   PERM-MISSING            INFO           a needed permission that is neither requested nor granted
+  SIGNIN-SCOPE            INFO           a sign-in scope (openid, profile, email, offline_access) the needs do not list;
+                                         offline_access lets the app keep access with refresh tokens
 
 Output: findings, a consent table, and the least-privilege replacement set (exact Graph permission names and types).
 Exit codes: 0 no finding at or above --fail-on, 1 findings at or above --fail-on, 2 bad input.
@@ -40,6 +46,7 @@ from __future__ import annotations
 import argparse
 import sys
 from pathlib import Path
+from urllib.parse import parse_qs, urlsplit
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
@@ -56,6 +63,7 @@ from _graphio import (  # noqa: E402
     exit_code,
     filter_min,
     finding,
+    guard_bad_shapes,
     load_config,
     redact,
     render_findings,
@@ -110,6 +118,8 @@ COVERS = {
 COVERS["Directory.ReadWrite.All"] = COVERS["Directory.Read.All"] | {"User.ReadWrite.All", "Group.ReadWrite.All", "Directory.Read.All",
                                                                     "GroupMember.ReadWrite.All"}
 CONFIG_KEYS = {"task", "type", "needs"}
+SIGN_IN_SCOPES = {"openid", "profile", "email", "offline_access"}
+GRAPH_HOSTS = {"graph.microsoft.com", "graph.microsoft.us", "dod-graph.microsoft.us", "microsoftgraph.chinacloudapi.cn"}
 PORTAL_APP = "Entra admin center > App registrations > (app) > API permissions"
 PORTAL_SP = "Entra admin center > Enterprise applications > (app) > Permissions"
 
@@ -166,6 +176,51 @@ def load_needs(path: str) -> dict:
     return {"task": str(cfg.get("task") or ""), "needs": needs}
 
 
+def read_consent_url(ex: Export) -> dict | None:
+    """Parse consent-url.txt: {"app_id": client_id, "scopes": [(resource, name)], "default": [resources]}. No request is made."""
+    p = ex.path("consent-url.txt")
+    if p is None:
+        ex.missing.append("consent-url.txt")
+        return None
+    try:
+        text = p.read_text(encoding="utf-8-sig")
+    except (OSError, UnicodeDecodeError) as exc:
+        raise InputError(f"consent-url.txt: cannot read: {exc}") from exc
+    lines = [line.strip() for line in text.splitlines() if line.strip() and not line.strip().startswith("#")]
+    if len(lines) != 1:
+        raise InputError(f"consent-url.txt: expected one URL on one line, found {len(lines)} lines")
+    try:
+        parts = urlsplit(lines[0])
+    except ValueError as exc:
+        raise InputError(f"consent-url.txt: not a URL: {exc}") from exc
+    if parts.scheme != "https" or not parts.netloc:
+        raise InputError("consent-url.txt: expected an https:// consent or sign-in link")
+    query = parse_qs(parts.query) or parse_qs(parts.fragment)
+    ex.used.append(p.name)
+    scopes, default = [], []
+    for raw in " ".join(query.get("scope", [])).split():
+        if "://" in raw:
+            host_part = urlsplit(raw)
+            resource = "Microsoft Graph" if host_part.netloc.lower() in GRAPH_HOSTS else f"{host_part.scheme}://{host_part.netloc}"
+            name = host_part.path.strip("/")
+        elif raw.lower().startswith("api://"):
+            resource, _, name = raw.rpartition("/")
+        else:
+            resource, name = ("sign-in" if raw.lower() in SIGN_IN_SCOPES else "Microsoft Graph"), raw
+        if not name:
+            continue
+        if name == ".default":
+            default.append(resource)
+            continue
+        scopes.append((resource, name))
+    if default:
+        ex.warnings.append(f"consent-url.txt asks for .default on {', '.join(sorted(set(default)))}: that grants whatever the "
+                           "app registration lists, so export application.json to see the actual permissions")
+    if not scopes and not default:
+        ex.warnings.append("consent-url.txt has no scope parameter; export application.json to see what the app requests")
+    return {"app_id": (query.get("client_id") or [""])[0], "scopes": scopes, "default": default}
+
+
 class Resolver:
     def __init__(self, resource_sps: list[dict] | None):
         self.roles: dict[str, str] = {}
@@ -200,11 +255,14 @@ def collect(ex: Export, resolver: Resolver) -> tuple[list[dict], dict]:
     grants = ex.list("oauth2-permission-grants.json")
     assignments = ex.list("app-role-assignments.json")
     declared = ex.obj("declared-permissions.json", expect=("permissions",))
+    consent_url = read_consent_url(ex)
     identity = {"app": (app or sp or declared or {}).get("displayName") or (declared or {}).get("app") or "?",
-                "app_id": (app or sp or {}).get("appId", ""), "sp_id": (sp or {}).get("id", "")}
-    if app is None and sp is None and grants is None and assignments is None and declared is None:
+                "app_id": (app or sp or {}).get("appId", "") or (consent_url or {}).get("app_id", ""), "sp_id": (sp or {}).get("id", "")}
+    if app is None and sp is None and grants is None and assignments is None and declared is None and consent_url is None:
         raise InputError(f"{ex.folder}: no permission source found (application.json, oauth2-permission-grants.json, "
-                         "app-role-assignments.json or declared-permissions.json)")
+                         "app-role-assignments.json, declared-permissions.json or consent-url.txt)")
+    for resource, name in (consent_url or {}).get("scopes", []):
+        rec(name, "Delegated", resource)["requested"] = True
     for rra in (app or {}).get("requiredResourceAccess") or []:
         resource = resolver.names.get(rra.get("resourceAppId", ""), rra.get("resourceAppId", "?"))
         for ra in rra.get("resourceAccess") or []:
@@ -264,6 +322,11 @@ def analyse(perms: list[dict], needs: list[dict], identity: dict) -> tuple[list[
         if p["name"].startswith("unresolved:"):
             out.append(finding("PERM-UNRESOLVED", "LOW", subject, "Permission id could not be turned into a name",
                                "export resource-service-principals.json for this resource", portal))
+            continue
+        if p["name"] in SIGN_IN_SCOPES and p["type"] == "Delegated":
+            if not any(n["name"] == p["name"] for n in needs):
+                extra = "; it lets the app keep access with refresh tokens" if p["name"] == "offline_access" else ""
+                out.append(finding("SIGNIN-SCOPE", "INFO", subject, "Sign-in scope the needs do not list", f"{state}{extra}", portal))
             continue
         risk = HIGH_RISK.get(p["name"])
         if risk:
@@ -347,6 +410,7 @@ def render(rep: dict, ex: Export, now) -> str:
     return "\n".join(lines)
 
 
+@guard_bad_shapes
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("folder", help="folder with the app's exported JSON")

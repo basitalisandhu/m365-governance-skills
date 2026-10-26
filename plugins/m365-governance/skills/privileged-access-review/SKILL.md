@@ -1,6 +1,6 @@
 ---
 name: privileged-access-review
-description: "Review privileged Microsoft Entra ID role holders from read-only Graph exports and score each admin account, reporting permanent privileged assignments, never-activated PIM eligibility, admins without phishing-resistant MFA, admin accounts used daily, stale or synchronised admins, and service principals and groups in roles, with the evidence per deduction. Use when asked \"which admins still use SMS?\", to review admins or PIM, or before a privileged access audit. Not for the quarterly sign-off (access-review-pack), Azure resource roles, or changing assignments."
+description: "Review privileged Microsoft Entra ID role holders from read-only Graph exports and score each admin account, reporting permanent privileged assignments, never-activated PIM eligibility, admins without phishing-resistant MFA, admin accounts used daily, stale or synchronised admins, and service principals and groups in roles. Use when asked \"which admins still use SMS?\", to review admins or PIM, or before a privileged access audit. Not for quarterly access review evidence and sign-off (access-review-pack), Azure resource roles, or changing assignments."
 license: MIT
 compatibility: Python 3.11 or newer on PATH as python3. The Microsoft Graph CLI (mgc) or any Graph client for the export step only; the script makes no network calls.
 metadata:

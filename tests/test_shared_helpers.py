@@ -28,7 +28,7 @@ def test_helper_copies_are_identical(helper):
 def test_scripts_have_no_network_or_subprocess_code(skill):
     for path in (SKILLS / skill / "scripts").glob("*.py"):
         text = path.read_text(encoding="utf-8")
-        assert not re.search(r"^\s*(import|from)\s+(socket|subprocess|urllib|http|requests|ssl|ftplib|smtplib)\b", text, re.M), path
+        assert not re.search(r"^\s*(import|from)\s+(socket|subprocess|urllib(?!\.parse\b)|http|requests|ssl|ftplib|smtplib)\b", text, re.M), path
 
 
 @pytest.mark.parametrize("skill,script", sorted(SCRIPTS.items()))

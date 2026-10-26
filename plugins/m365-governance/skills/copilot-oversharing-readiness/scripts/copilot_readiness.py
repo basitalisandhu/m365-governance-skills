@@ -54,6 +54,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import functools
 import hashlib
 import io
 import json
@@ -92,11 +93,28 @@ class InputError(Exception):
     """Bad or unreadable input. Exit 2."""
 
 
+def guard_bad_shapes(main):
+    """Decorate main(): a wrongly typed value deep inside an export exits 2 with a message, not a traceback."""
+
+    @functools.wraps(main)
+    def wrapper(*args, **kwargs):
+        try:
+            return main(*args, **kwargs)
+        except (TypeError, AttributeError, KeyError, IndexError, ValueError) as exc:
+            print(f"error: an export value has an unexpected type or shape ({type(exc).__name__}: {exc}); check that every "
+                  "file is the unchanged output of the command named in --help, re-export it and run again", file=sys.stderr)
+            return 2
+
+    return wrapper
+
+
 def load_json(path: Path):
     try:
         text = path.read_text(encoding="utf-8-sig")
     except OSError as exc:
         raise InputError(f"{path.name}: cannot read: {exc}") from exc
+    except UnicodeDecodeError as exc:
+        raise InputError(f"{path.name}: not UTF-8 text ({exc.reason} at byte {exc.start}); save the export as UTF-8 JSON") from exc
     if not text.strip():
         raise InputError(f"{path.name}: file is empty; re-run the export and save the JSON output")
     try:
@@ -225,7 +243,7 @@ class Folder:
         try:
             with p.open(encoding="utf-8-sig", newline="") as fh:
                 rows = list(csv.DictReader(fh))
-        except (OSError, csv.Error) as exc:
+        except (OSError, csv.Error, UnicodeDecodeError) as exc:
             raise InputError(f"{name}: cannot read CSV: {exc}") from exc
         self.used.append(name)
         return [{str(k).strip().lower(): v for k, v in r.items() if k} for r in rows]
@@ -626,6 +644,7 @@ def remediation_csv(findings: list[dict]) -> str:
     return buf.getvalue()
 
 
+@guard_bad_shapes
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("folder", help="folder of saved exports")

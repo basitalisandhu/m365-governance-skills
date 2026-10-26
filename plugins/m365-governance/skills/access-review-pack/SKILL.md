@@ -1,6 +1,6 @@
 ---
 name: access-review-pack
-description: "Build a quarterly Microsoft 365 access review package from read-only Graph exports, listing directory role holders (active and PIM-eligible) with last sign-in, app owners and apps with no owner, owners of sensitive groups, guests per group and app secrets and certificates about to expire, with a reviewer checklist and a sign-off CSV. Use when asked to \"prepare the quarterly access review\", to build the review pack, or for ISO 27001 or SOC 2 access review evidence. Not for finding misconfigurations (entra-posture-review), running Entra ID Governance reviews, or removing access."
+description: "Build a quarterly Microsoft 365 access review package from read-only Graph exports, listing directory role holders (active and PIM-eligible) with last sign-in, app owners and apps with no owner, owners of sensitive groups, guests per group and app secrets and certificates about to expire, with a reviewer checklist and a sign-off CSV. Use when asked to \"prepare the quarterly access review\", to build the review pack, or for ISO 27001 or SOC 2 access review evidence. Not for misconfigurations (entra-posture-review), teams with no owner (teams-and-groups-sprawl) or removing access."
 license: MIT
 compatibility: Python 3.11 or newer on PATH as python3. The Microsoft Graph CLI (mgc) or any Graph client for the export step only; the script makes no network calls.
 metadata:

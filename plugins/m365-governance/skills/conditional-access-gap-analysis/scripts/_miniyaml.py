@@ -238,6 +238,7 @@ class _Parser:
                 raise YAMLError(f"line {line.no}: unexpected indentation")
             if not (line.text == "-" or line.text.startswith("- ")):
                 break  # back to the parent mapping
+            start = i
             rest = line.text[1:].strip()
             if rest == "":
                 value, i = self._parse_node(i + 1, indent + 1)
@@ -261,11 +262,15 @@ class _Parser:
                 if anchor:
                     self.anchors[anchor] = value
                 items.append(value)
+                if i <= start:
+                    raise YAMLError(f"line {line.no}: cannot parse this sequence item")
                 continue
             value, i = self._parse_value_lines(rest, i, indent)
             if anchor:
                 self.anchors[anchor] = value
             items.append(value)
+            if i <= start:  # nothing consumed: malformed input such as "- - -:" would otherwise loop for ever
+                raise YAMLError(f"line {line.no}: cannot parse this sequence item")
         return items, i
 
     def _parse_nested_sequence_inline(self, i: int, child_indent: int, rest: str):
@@ -504,6 +509,8 @@ def _parse_flow(s: str, i: int, parser: _Parser):
             value, i = _parse_flow(s, i, parser)
             i = _skip_ws(s, i)
             if i < len(s) and s[i] == ":":  # single-pair mapping inside a sequence: [a: 1]
+                if isinstance(value, (list, dict)):
+                    raise YAMLError(f"a flow collection cannot be a mapping key near position {i}")
                 v2, i = _parse_flow(s, i + 1, parser)
                 value = {value: v2}
                 i = _skip_ws(s, i)

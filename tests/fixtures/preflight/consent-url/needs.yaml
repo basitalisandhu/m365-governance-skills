@@ -1,0 +1,7 @@
+# Needs for the consent-url fixture: summarise the signed-in user's own mail.
+task: Summarise the signed-in user's own mail
+type: Delegated
+needs:
+  - Mail.Read
+  - User.Read
+  - openid

@@ -1,0 +1,2 @@
+# The sign-in link a vendor sent for its mail summary connector (example values only).
+https://login.microsoftonline.com/organizations/oauth2/v2.0/authorize?client_id=00000000-0000-0000-0000-000000000c01&response_type=code&redirect_uri=https%3A%2F%2Fconnector.example.com%2Fcallback&scope=https%3A%2F%2Fgraph.microsoft.com%2FMail.ReadWrite+https%3A%2F%2Fgraph.microsoft.com%2FUser.Read+offline_access+openid+profile

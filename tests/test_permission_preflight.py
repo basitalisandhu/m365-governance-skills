@@ -107,3 +107,37 @@ def test_application_file_of_the_wrong_shape_is_bad_input(tmp_path):
     (folder / "application.json").write_text(json.dumps({"foo": 1}), encoding="utf-8")
     rc, out, err = run_main(mod, [str(folder), "--needs", str(folder / "needs.yaml")])
     assert rc == 2 and out == "" and "application.json" in err and "requiredResourceAccess" in err
+
+
+def test_consent_url_scopes_are_read_as_requested_delegated_permissions():
+    rc, rep = run("consent-url", "needs.yaml")
+    assert rc == 1
+    assert rep["app_id"] == "00000000-0000-0000-0000-000000000c01"
+    status = {(p["permission"], p["type"], p["resource"]): p["status"] for p in rep["permissions"]}
+    assert status[("Mail.ReadWrite", "Delegated", "Microsoft Graph")] == "requested, not consented"
+    assert ("User.Read", "Delegated", "Microsoft Graph") in status
+    assert {("offline_access", "Delegated", "sign-in"), ("openid", "Delegated", "sign-in"),
+            ("profile", "Delegated", "sign-in")} <= set(status)
+    assert by(rep, "PERM-BROADER") == {"Mail.ReadWrite": "HIGH"}
+    # sign-in scopes are not "unused" permissions; the ones the needs do not list are noted at INFO
+    assert "offline_access" not in by(rep, "PERM-UNUSED")
+    assert by(rep, "SIGNIN-SCOPE") == {"offline_access": "INFO", "profile": "INFO"}
+    assert "consent-url.txt" in rep["inputs"]
+
+
+def test_consent_url_with_default_scope_warns(tmp_path):
+    (tmp_path / "consent-url.txt").write_text(
+        "https://login.microsoftonline.com/common/adminconsent?client_id=00000000-0000-0000-0000-000000000c02"
+        "&scope=https://graph.microsoft.com/.default\n", encoding="utf-8")
+    rc, rep = run_json(mod, [str(tmp_path), "--needs", str(PF / "consent-url" / "needs.yaml"), "--as-of", "2026-10-04", "--json"])
+    assert rc == 0
+    assert any(".default" in w and "application.json" in w for w in rep["warnings"])
+    assert rep["permissions"] == []
+
+
+def test_consent_url_bad_input_exits_2(tmp_path):
+    needs = str(PF / "consent-url" / "needs.yaml")
+    for text in ("not a url\n", "http://login.example.com/?scope=Mail.Read\n", "https://a.example.com/?scope=x\nhttps://b.example.com/\n"):
+        (tmp_path / "consent-url.txt").write_text(text, encoding="utf-8")
+        rc, _, err = run_main(mod, [str(tmp_path), "--needs", needs])
+        assert rc == 2 and "consent-url.txt" in err, text

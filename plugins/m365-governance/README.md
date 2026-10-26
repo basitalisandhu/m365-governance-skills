@@ -40,6 +40,8 @@ Every script: 0 when no finding is at or above `--fail-on`, 1 when at least one 
 
 Real output from the committed fixtures (example tenants with planted problems), trimmed to the findings table.
 
+Every skill folder also has a `README.md` with the full command and its untrimmed output, for example [skills/conditional-access-gap-analysis/README.md](skills/conditional-access-gap-analysis/README.md); `python3 scripts/render_skill_readmes.py` regenerates them.
+
 `teams-and-groups-sprawl`:
 
 ```bash
