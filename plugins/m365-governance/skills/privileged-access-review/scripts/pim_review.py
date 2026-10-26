@@ -71,6 +71,7 @@ from _graphio import (  # noqa: E402
     exit_code,
     filter_min,
     finding,
+    guard_bad_shapes,
     iso_day,
     load_config,
     parse_dt,
@@ -320,6 +321,7 @@ def render(rep: dict, ex: Export, now) -> str:
     return "\n".join(lines)
 
 
+@guard_bad_shapes
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("folder", help="folder of saved Graph JSON exports")

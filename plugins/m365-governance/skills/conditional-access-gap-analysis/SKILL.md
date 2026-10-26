@@ -1,6 +1,6 @@
 ---
 name: conditional-access-gap-analysis
-description: "Find gaps, overlaps and exclusion problems in Microsoft Entra Conditional Access from read-only Graph exports, resolving who each policy really covers and checking MFA for all users and admins, legacy authentication, device and risk policies, break-glass and unexplained exclusions, report-only and self-cancelling policies, with a coverage matrix by persona. Use when asked \"who is not covered by MFA?\", before turning off security defaults or redesigning Conditional Access. Not for the wider tenant posture (entra-posture-review), simulating sign-ins, or changing policies."
+description: "Find gaps, overlaps and exclusion problems in Microsoft Entra Conditional Access from read-only Graph exports, resolving who each policy really covers and checking MFA for all users and admins, legacy authentication, device and risk policies, break-glass accounts and exclusions nobody can explain, report-only and self-cancelling policies, with a coverage matrix by persona. Use when asked \"who is not covered by MFA?\", before turning off security defaults or redesigning Conditional Access. Not for the wider tenant posture review (entra-posture-review), simulating sign-ins, or changing policies."
 license: MIT
 compatibility: Python 3.11 or newer on PATH as python3. The Microsoft Graph CLI (mgc) or any Graph client for the export step only; the script makes no network calls.
 metadata:

@@ -84,6 +84,7 @@ from _graphio import (  # noqa: E402
     exit_code,
     filter_min,
     finding,
+    guard_bad_shapes,
     iso_day,
     load_config,
     person_names,
@@ -183,6 +184,7 @@ class Tenant:
         self.group_names = {g.get("id"): g.get("displayName", g.get("id")) for g in groups or []}
         self.members: dict[str, set[str]] = {gid: {m.get("id") for m in ms} for gid, ms in (members or {}).items()}
         self.unknown_groups: set[str] = set()
+        self._scopes: dict[int, tuple[dict, set[str], set[str]]] = {}
         role_names = {GLOBAL_ADMIN_TEMPLATE: "Global Administrator"}
         for r in role_defs or []:
             for key in ("id", "templateId"):
@@ -252,6 +254,20 @@ class Tenant:
         u = _users(p)
         return self._match(u, "include", uid) and not self._match(u, "exclude", uid)
 
+    def scope(self, p: dict) -> set[str]:
+        """The exported users a policy applies to, resolved once per policy. Coverage, CA-ZERO-TARGET and the matrix
+        all read this, so each policy costs one pass over the users instead of one per check. Groups the policy
+        references without a group-members export are added to unknown_groups on every call, as applies() would."""
+        hit = self._scopes.get(id(p))
+        if hit is None or hit[0] is not p:
+            seen, self.unknown_groups = self.unknown_groups, set()
+            users = {uid for uid in self.users if self.applies(p, uid)}
+            hit = (p, users, self.unknown_groups)
+            self._scopes[id(p)] = hit
+            self.unknown_groups = seen
+        self.unknown_groups |= hit[2]
+        return hit[1]
+
     def persona(self, name: str) -> set[str]:
         enabled = {i for i, u in self.users.items() if u.get("accountEnabled") is not False}
         if name == "all users":
@@ -291,7 +307,8 @@ def check_gaps(enabled: list[dict], t: Tenant, limit: int) -> list[dict]:
         policies = [p for p in enabled if qualifies(p)]
         if t.have_users:
             people = t.persona(persona)
-            gap = {uid for uid in people if not any(t.applies(p, uid) for p in policies)}
+            covered = set().union(*(t.scope(p) for p in policies))
+            gap = people - covered
             if not gap:
                 continue
             via = ", ".join(p.get("displayName", "?") for p in policies) or "no qualifying enabled policy"
@@ -387,7 +404,7 @@ def check_policies(policies: list[dict], t: Tenant, cfg: dict, now) -> list[dict
                                f"{CA_PORTAL}. Exclusion wins: fix the include list so the policy targets who it was meant to"))
         if t.have_users:
             t.unknown_groups.clear()
-            reached = [uid for uid in t.users if t.applies(p, uid)]
+            reached = t.scope(p)
             if not reached and not t.unknown_groups:
                 out.append(finding("CA-ZERO-TARGET", "MEDIUM", name, "Policy applies to no user",
                                    f"state {state}; 0 of {len(t.users)} exported users are in scope" + ("; include and exclude cancel out"
@@ -449,7 +466,7 @@ def matrix(policies: list[dict], t: Tenant) -> list[dict]:
                "controls": controls_label(p)}
         for name in PERSONAS:
             people = personas.get(name)
-            row[name] = "?" if people is None else f"{sum(1 for uid in people if t.applies(p, uid))}/{len(people)}"
+            row[name] = "?" if people is None else f"{len(t.scope(p) & people)}/{len(people)}"
         rows.append(row)
     return rows
 
@@ -473,8 +490,7 @@ def evaluate(folder: str, cfg: dict, now) -> tuple[dict, Export, set[str]]:
     t.unknown_groups.clear()
     rows = matrix(policies, t)
     for p in active:
-        for uid in t.users:
-            t.applies(p, uid)
+        t.scope(p)  # records referenced groups that have no group-members export
     not_evaluated = []
     if users is None:
         not_evaluated.append("users.json not found: coverage, CA-ZERO-TARGET and the matrix need it; gaps were checked structurally")
@@ -509,6 +525,7 @@ def render(rep: dict, ex: Export, now) -> str:
     return "\n".join(lines)
 
 
+@guard_bad_shapes
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("folder", help="folder of saved Graph JSON exports")

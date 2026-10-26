@@ -1,0 +1,62 @@
+# privileged-access-review
+
+Scores every privileged Entra ID role holder: permanent assignments, never-activated PIM eligibility, admins without phishing-resistant MFA, admin accounts used daily, stale or synchronised admins, and service principals and groups in roles, with the evidence for each deduction.
+
+How to run it, what to export and how to read the result: [SKILL.md](SKILL.md). Every option: `python3 scripts/pim_review.py --help`.
+
+## Sample
+
+Run from the repository root on the committed fixture (an example tenant with planted problems; every name, address and id in it is invented). Exit code 1 (findings at or above --fail-on).
+
+```bash
+python3 plugins/m365-governance/skills/privileged-access-review/scripts/pim_review.py tests/fixtures/pim-review/tenant --config tests/fixtures/pim-review/config.yaml --as-of 2026-10-04
+```
+
+Output, as printed (first 40 lines):
+
+````markdown
+# Privileged access review
+
+Evaluated as of 2026-10-04.
+Read: role-activations.json, role-assignment-schedule-instances.json, role-assignments.json, role-definitions.json, role-eligibility-schedule-instances.json, service-principals.json, subscribed-skus.json, user-registration-details.json, users.json.
+
+| Severity | Findings |
+|---|---|
+| CRITICAL | 1 |
+| HIGH | 3 |
+| MEDIUM | 2 |
+| LOW | 3 |
+| INFO | 1 |
+
+## Findings
+
+| # | Severity | Check | Subject | Finding | Evidence |
+|---|---|---|---|---|---|
+| 1 | CRITICAL | PIM-PERMANENT-PRIVILEGED | ga.daily@example.com | Permanent Global Administrator | no end date and not a PIM activation |
+| 2 | HIGH | ADMIN-NO-PHISHING-RESISTANT | ga.daily@example.com | Admin has no phishing-resistant method | registered: mobilePhone |
+| 3 | HIGH | ADMIN-NO-PHISHING-RESISTANT | sec.eligible@example.com | Admin has no phishing-resistant method | registered: microsoftAuthenticatorPush, softwareOneTimePasscode |
+| 4 | HIGH | SP-PRIVILEGED-ROLE | Example Provisioning App | Service principal holds User Administrator | active assignment; an app credential can use this role with no MFA |
+| 5 | MEDIUM | ADMIN-DAILY-USE-ACCOUNT | ga.daily@example.com | Admin account looks like a daily-use account | Exchange mailbox plan enabled; licences: SPE_E3 |
+| 6 | MEDIUM | ADMIN-STALE | sec.eligible@example.com | Admin has not signed in recently | last sign-in 2026-05-01 |
+| 7 | LOW | ADMIN-SYNCED | helpdesk.scoped@example.com | Admin account is synchronised from on-premises | onPremisesSyncEnabled is true; a compromise of Active Directory reaches this role |
+| 8 | LOW | PIM-ELIGIBLE-NEVER-ACTIVATED | sec.eligible@example.com | Eligible for Security Administrator, never activated | eligible since 2026-01-10; no activation in role-activations.json |
+| 9 | LOW | ROLE-SCOPED | helpdesk.scoped@example.com | Helpdesk Administrator assigned at scope /administrativeUnits/00000000-0000-0000-0000-000000000d0a | active assignment scoped to /administrativeUnits/00000000-0000-0000-0000-000000000d0a, not the tenant root |
+| 10 | INFO | ROLE-GROUP-HOLDER | Helpdesk Tier 2 | Helpdesk Administrator is assigned to a group (active) | members of the group hold the role; review the group's membership as part of this review |
+
+### Fix guidance (shown for review, never run by the script)
+
+1. portal: Entra admin center > Identity governance > Privileged Identity Management > Microsoft Entra roles > Global Administrator > Assignments > Active; Graph: `Convert to an eligible assignment in PIM, then remove the active one`
+2. portal: Entra admin center > Protection > Authentication methods. Register a FIDO2 key, passkey or Windows Hello for Business, then require a phishing-resistant authentication strength for admin roles
+3. portal: Entra admin center > Protection > Authentication methods. Register a FIDO2 key, passkey or Windows Hello for Business, then require a phishing-resistant authentication strength for admin roles
+4. portal: Entra admin center > Roles and administrators > User Administrator; Graph: `DELETE /roleManagement/directory/roleAssignments/ra-5 (only after the owner confirms a narrower Graph permission works)`
+5. portal: Create a separate cloud-only admin account without a mailbox or licence, move the roles to it, and remove them here
+6. portal: Entra admin center > Identity governance > Privileged Identity Management > Microsoft Entra roles. Remove the role if it is not used
+7. portal: Use a cloud-only account for the admin role
+8. portal: Entra admin center > Identity governance > Privileged Identity Management > Microsoft Entra roles > Security Administrator > Assignments > Eligible. Remove the eligibility if not needed
+9. portal: Entra admin center > Identity governance > Privileged Identity Management > Microsoft Entra roles > Helpdesk Administrator > Assignments (filter by scope)
+10. portal: Entra admin center > Identity governance > Privileged Identity Management > Microsoft Entra roles > Helpdesk Administrator > Assignments
+
+... (12 more lines)
+````
+
+This file is generated by `python3 scripts/render_skill_readmes.py`; edit that script, not this file.

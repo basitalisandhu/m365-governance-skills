@@ -1,6 +1,6 @@
 ---
 name: license-and-service-plan-audit
-description: "Find wasted Microsoft 365 licences from read-only Graph exports, reporting licences on disabled, never-signed-in or inactive accounts, overlapping SKUs, unwanted service plans, group-based licensing errors and unassigned units, with a draft reclaim list per SKU; costs appear only when you supply unit prices. Use when asked \"where are we wasting licences?\", before a renewal or true-up, or after a leavers clean-up. Not for buying or changing subscriptions, app usage analytics, or removing licences."
+description: "Find wasted Microsoft 365 licences from read-only Graph exports, reporting licences on disabled, never-signed-in or inactive accounts, overlapping SKUs (such as E3 and E5 on one user), unwanted service plans, group-based licensing errors and unassigned units, with a draft reclaim list per SKU; costs appear only when you supply unit prices. Use when asked \"where are we wasting licences?\", before a renewal or true-up, or after leavers go. Not for buying subscriptions, app usage, cleaning up groups (teams-and-groups-sprawl) or removing licences."
 license: MIT
 compatibility: Python 3.11 or newer on PATH as python3. The Microsoft Graph CLI (mgc) or any Graph client for the export step only; the script makes no network calls.
 metadata:

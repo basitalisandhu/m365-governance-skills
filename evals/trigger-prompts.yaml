@@ -1,0 +1,135 @@
+# Labelled trigger prompts for every skill in this pack: 5 should_trigger and 5 should_not_trigger each, the
+# negatives mixing neighbour skills and unrelated requests. Score the descriptions with trigger_eval.py from the
+# skill-trigger-eval skill (basitalisandhu/claude-code-tooling-skills):
+#   python3 trigger_eval.py evals/trigger-prompts.yaml --skill plugins/m365-governance/skills --cross
+# Add prompts here when a description changes, and keep the old ones so later rewrites are measured the same way.
+access-review-pack:
+  should_not_trigger:
+  - Check our Entra tenant for misconfigurations and standing Global Admins
+  - Remove access for the users who left the company
+  - Set up Entra ID Governance access reviews in the portal
+  - Check Intune device compliance baselines
+  - Draft an email to the board about security
+  should_trigger:
+  - Prepare the quarterly access review
+  - I need ISO 27001 access review evidence from Entra and Graph exports
+  - List directory role holders with last sign-in and PIM eligible assignments for the review
+  - Which apps have no owner and which app secrets are about to expire? Build the review pack
+  - Make a reviewer checklist and sign-off CSV for SOC 2 access reviews
+conditional-access-gap-analysis:
+  should_not_trigger:
+  - Baseline our Entra tenant posture before the Essential Eight audit
+  - Simulate a sign-in with the What If tool for this user
+  - Which admins still use SMS for MFA?
+  - Create a new Conditional Access policy that requires compliant devices
+  - Explain the difference between Azure AD P1 and P2
+  should_trigger:
+  - Who is not covered by MFA in our Conditional Access setup?
+  - Find the holes in our CA policies before we switch off security defaults
+  - Are the break-glass accounts excluded properly, and are there exclusions nobody can explain?
+  - Does any policy block legacy authentication for every user?
+  - 'Give me a coverage matrix of Conditional Access by persona: admins, guests, staff'
+copilot-oversharing-readiness:
+  should_not_trigger:
+  - Who are our guests and what can they reach?
+  - Write a prompt guide for staff using Copilot in Word
+  - How much does a Copilot licence cost per user?
+  - Which teams have no owner?
+  - Read the contents of these files and summarise them
+  should_trigger:
+  - Are we ready to turn on Copilot for the whole company?
+  - Before the Copilot pilot, which SharePoint sites are overshared with Everyone?
+  - Score our tenant for Copilot oversharing and give each site owner a fix list
+  - Which sites have no sensitivity label and broad sharing links ahead of Microsoft 365 Copilot?
+  - Check our DLP and labels coverage before Copilot widens to more users
+entra-posture-review:
+  should_not_trigger:
+  - Are our Intune devices encrypted and compliant?
+  - Check what Graph permissions this one app needs before consent
+  - We were phished, help me respond to the incident
+  - Prepare the quarterly access review package
+  - Write a PowerShell script to create 20 test users
+  should_trigger:
+  - Who are our Global Admins?
+  - Baseline our Entra ID tenant before the Essential Eight audit
+  - Review Conditional Access and security defaults from these Graph exports
+  - We just took over a tenant, find stale guests and long-lived app secrets
+  - Which apps hold high-risk Graph application permissions?
+graph-permission-preflight:
+  should_not_trigger:
+  - Which apps across the tenant hold high-risk Graph application permissions?
+  - Grant the consent for me in the Entra portal
+  - What can our AI agent apps do in Entra and who sponsors them?
+  - Write a Python script that calls the Graph API to list users
+  - Who are our Global Admins?
+  should_trigger:
+  - Is it safe to grant admin consent to this app?
+  - This MCP server asks for Mail.ReadWrite and Sites.Read.All, does it need all that?
+  - Compare the Graph scopes this connector holds with what it actually uses
+  - Propose a least-privilege permission set for our automation before we connect it to Microsoft 365
+  - Flag the .All and write permissions this vendor app requests
+guest-and-external-sharing-review:
+  should_not_trigger:
+  - Are we ready to turn on Copilot?
+  - Which teams have no owner?
+  - Remove these five guest accounts now
+  - Review the Entra tenant posture after the handover
+  - Set up a SharePoint site for the marketing team
+  should_trigger:
+  - Who are our guests and what can they reach?
+  - A partner just left, draft the list of their guest accounts to remove
+  - Find anyone links and sharing links that never expire
+  - Which guests never accepted their invitation and which are stale?
+  - Is Teams external access open to every domain, and can guests reshare?
+intune-baseline-check:
+  should_not_trigger:
+  - Wipe the lost iPhone of the sales manager
+  - Triage these Defender for Endpoint alerts
+  - Review Conditional Access and security defaults
+  - Which licences are sitting on disabled accounts?
+  - How do I enrol a Mac into Intune?
+  should_trigger:
+  - Which devices are not compliant?
+  - I need Essential Eight device evidence from our Intune exports
+  - Find laptops that are unencrypted or have not checked in for 30 days
+  - Are there jailbroken phones or devices on old OS versions in Intune?
+  - Do we have compliance policies that are not assigned to anyone, per platform?
+license-and-service-plan-audit:
+  should_not_trigger:
+  - Buy 20 more Business Premium licences
+  - Which apps do staff actually use most in Microsoft 365?
+  - Remove the licence from this user
+  - Which admins have no phishing-resistant MFA?
+  - What is the difference between E3 and E5?
+  should_trigger:
+  - Where are we wasting licences?
+  - Before the Microsoft 365 renewal, find licences on disabled or never-signed-in users
+  - Do any users have both E3 and E5 assigned?
+  - Show the group-based licensing errors and unassigned units per SKU
+  - Draft a reclaim list of inactive E5 seats after the leavers clean-up
+privileged-access-review:
+  should_not_trigger:
+  - Prepare the quarterly access review sign-off
+  - Who has Owner on our Azure subscriptions?
+  - Make this user a Global Administrator
+  - Who is not covered by MFA?
+  - Write a password policy for staff
+  should_trigger:
+  - Which admins still use SMS?
+  - 'Review our PIM setup: who has permanent admin roles and who never activates?'
+  - Score each admin account for the privileged access audit
+  - Are there service principals or groups holding Entra directory roles?
+  - Find admin accounts used for daily work or synchronised from on-premises
+teams-and-groups-sprawl:
+  should_not_trigger:
+  - Archive and delete these old teams
+  - Find anyone links on SharePoint
+  - Search the mailbox of the departed user
+  - Which devices are not compliant?
+  - Create a team for the new project
+  should_trigger:
+  - Which teams have no owner?
+  - We are cleaning up Microsoft 365 groups, find empty, inactive and single-owner ones
+  - Before the migration, list public teams and groups that break our naming rules
+  - Which groups have no expiration policy, and who could own the ownerless ones?
+  - Find teams with guest owners

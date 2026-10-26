@@ -14,15 +14,19 @@ What it provides:
     lower-cased value: the same person gets the same token across one report.
   * load_config(): YAML (via _miniyaml) or JSON config with a key allow-list.
   * render_findings() and cell(): Markdown output that keeps untrusted tenant text inside its table cell.
+  * guard_bad_shapes(): wraps a script's main() so a value of the wrong type deep inside an export (a number where
+    Graph writes a string, a list where it writes an object) exits 2 with a message instead of a traceback.
 
 Nothing here opens a socket, runs a subprocess or calls Microsoft Graph.
 """
 from __future__ import annotations
 
 import csv
+import functools
 import hashlib
 import json
 import re
+import sys
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -44,6 +48,8 @@ def load_json(path: Path):
         text = path.read_text(encoding="utf-8-sig")
     except OSError as exc:
         raise InputError(f"{path}: cannot read: {exc}") from exc
+    except UnicodeDecodeError as exc:
+        raise InputError(f"{path}: not UTF-8 text ({exc.reason} at byte {exc.start}); save the export as UTF-8 JSON") from exc
     if not text.strip():
         raise InputError(f"{path}: file is empty; re-run the export and save the JSON response")
     try:
@@ -162,7 +168,7 @@ class Export:
         try:
             with p.open(encoding="utf-8-sig", newline="") as fh:
                 rows = list(csv.DictReader(fh))
-        except (OSError, csv.Error) as exc:
+        except (OSError, csv.Error, UnicodeDecodeError) as exc:
             raise InputError(f"{p.name}: cannot read CSV: {exc}") from exc
         self.used.append(p.name)
         return rows
@@ -270,6 +276,8 @@ def load_config(path: str | None, allowed: set[str]) -> dict:
         text = p.read_text(encoding="utf-8")
     except OSError as exc:
         raise InputError(f"{p}: cannot read: {exc}") from exc
+    except UnicodeDecodeError as exc:
+        raise InputError(f"{p}: not UTF-8 text ({exc.reason} at byte {exc.start})") from exc
     try:
         cfg = json.loads(text) if p.suffix == ".json" else yaml_load(text)
     except (json.JSONDecodeError, YAMLError) as exc:
@@ -358,3 +366,28 @@ def filter_min(findings: list[dict], min_severity: str) -> list[dict]:
 
 def dumps(obj) -> str:
     return json.dumps(obj, indent=2, sort_keys=False, default=str)
+
+
+# Errors that mean an export or config value had a type or shape the script did not expect (RecursionError: JSON
+# nested deeper than Python can decode).
+SHAPE_ERRORS = (TypeError, AttributeError, KeyError, IndexError, ValueError, RecursionError)
+
+
+def guard_bad_shapes(main):
+    """Decorate a script's main(): a wrongly typed value inside an export becomes exit 2 with a message.
+
+    items_of() already rejects files of the wrong overall shape. This catches what is deeper, such as a number
+    where Graph writes a string or a list where it writes an object, which otherwise ends in a traceback.
+    """
+
+    @functools.wraps(main)
+    def wrapper(*args, **kwargs):
+        try:
+            return main(*args, **kwargs)
+        except SHAPE_ERRORS as exc:
+            detail = f"{type(exc).__name__}: {exc}"
+            print(f"error: an export or config value has an unexpected type or shape ({detail}); check that every file is "
+                  "the unchanged JSON response of the command named in --help, re-export it and run again", file=sys.stderr)
+            return 2
+
+    return wrapper

@@ -1,6 +1,6 @@
 ---
 name: intune-baseline-check
-description: "Check a Microsoft Intune estate against a device baseline from read-only Graph exports, reporting non-compliant, stale, unencrypted, jailbroken and outdated devices, personal devices, unassigned compliance policies, platforms missing baseline controls and the no-policy-means-compliant setting, per platform. Use when asked \"which devices are not compliant?\", or for Essential Eight or ISO 27001 device evidence. Not for identity settings (entra-posture-review), Defender for Endpoint alerts, or remote wipe and retire."
+description: "Check a Microsoft Intune estate against a device baseline from read-only Graph exports, reporting non-compliant, stale (not checked in for 30 days by default), unencrypted, jailbroken and outdated-OS laptops and phones, personal devices, compliance policies not assigned, platforms missing baseline controls and the no-policy-means-compliant setting, per platform. Use when asked \"which devices are not compliant?\", or for Essential Eight or ISO 27001 device evidence. Not for identity settings (entra-posture-review), Defender alerts, or remote wipe."
 license: MIT
 compatibility: Python 3.11 or newer on PATH as python3. The Microsoft Graph CLI (mgc) or any Graph client for the export step only; the script makes no network calls.
 metadata:
