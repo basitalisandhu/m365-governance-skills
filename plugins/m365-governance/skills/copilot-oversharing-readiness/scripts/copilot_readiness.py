@@ -100,7 +100,7 @@ def guard_bad_shapes(main):
     def wrapper(*args, **kwargs):
         try:
             return main(*args, **kwargs)
-        except (TypeError, AttributeError, KeyError, IndexError, ValueError) as exc:
+        except (TypeError, AttributeError, KeyError, IndexError, ValueError, RecursionError) as exc:
             print(f"error: an export value has an unexpected type or shape ({type(exc).__name__}: {exc}); check that every "
                   "file is the unchanged output of the command named in --help, re-export it and run again", file=sys.stderr)
             return 2

@@ -368,8 +368,9 @@ def dumps(obj) -> str:
     return json.dumps(obj, indent=2, sort_keys=False, default=str)
 
 
-# Errors that mean an export or config value had a type or shape the script did not expect.
-SHAPE_ERRORS = (TypeError, AttributeError, KeyError, IndexError, ValueError)
+# Errors that mean an export or config value had a type or shape the script did not expect (RecursionError: JSON
+# nested deeper than Python can decode).
+SHAPE_ERRORS = (TypeError, AttributeError, KeyError, IndexError, ValueError, RecursionError)
 
 
 def guard_bad_shapes(main):

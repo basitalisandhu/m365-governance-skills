@@ -162,3 +162,16 @@ def test_miniyaml_inputs_found_by_fuzzing(text):
     yaml = load_script("access-review-pack", "_miniyaml.py")
     with pytest.raises(yaml.YAMLError):
         yaml.load(text)
+
+
+@pytest.mark.parametrize("case", CASES[:9], ids=[c[0] for c in CASES[:9]])
+def test_json_nested_too_deep_exits_2(case, tmp_path):
+    """JSON nested deeper than Python's recursion limit raised RecursionError from json.loads."""
+    skill, script, fixture, config, extra = case
+    mod = load_script(skill, script)
+    work = tmp_path / "t"
+    shutil.copytree(FIXTURES / fixture, work)
+    target = sorted(work.glob("*.json"))[0]
+    target.write_text("[" * 100_000 + "]" * 100_000, encoding="utf-8")
+    rc, _, err = run_main(mod, [str(work), *AS_OF])
+    assert rc == 2 and "RecursionError" in err, err
