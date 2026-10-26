@@ -158,7 +158,10 @@ def parse_dt(value) -> datetime | None:
     s = value.strip()
     m = re.match(r"^/Date\((\d+)\)/$", s)  # Windows PowerShell 5 date shape
     if m:
-        return datetime.fromtimestamp(int(m.group(1)) / 1000, UTC)
+        try:
+            return datetime.fromtimestamp(int(m.group(1)) / 1000, UTC)
+        except (OverflowError, OSError, ValueError):  # a date beyond what the platform can hold
+            return None
     s = re.sub(r"(\.\d{6})\d+", r"\1", s[:-1] + "+00:00" if s.endswith("Z") else s)
     try:
         dt = datetime.fromisoformat(s)

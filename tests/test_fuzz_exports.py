@@ -175,3 +175,10 @@ def test_json_nested_too_deep_exits_2(case, tmp_path):
     target.write_text("[" * 100_000 + "]" * 100_000, encoding="utf-8")
     rc, _, err = run_main(mod, [str(work), *AS_OF])
     assert rc == 2 and "RecursionError" in err, err
+
+
+def test_powershell_date_beyond_the_platform_range_is_ignored(tmp_path):
+    """A "/Date(...)/" value too large for datetime raised OverflowError; it now reads as no date."""
+    mod = load_script("copilot-oversharing-readiness", "copilot_readiness.py")
+    assert mod.parse_dt("/Date(99999999999999999999)/") is None
+    assert mod.parse_dt("/Date(1790000000000)/").year == 2026

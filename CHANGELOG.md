@@ -13,11 +13,12 @@ Second deep pass: trigger evaluation of every description, seeded fuzz tests on 
 - `graph-permission-preflight`: reads the consent or sign-in link a vendor sent, saved as `consent-url.txt`. The `scope` parameter is parsed as requested delegated permissions (`https://graph.microsoft.com/Mail.Read` becomes `Mail.Read`); the link is never opened. `openid`, `profile`, `email` and `offline_access` are recognised as sign-in scopes and never reported as unused; the new `SIGNIN-SCOPE` (INFO) notes the ones the needs do not list. A `.default` scope gives a warning asking for `application.json` (#9).
 - Every skill folder has a `README.md` with the command that runs its script on a committed fixture and the real output, written by `scripts/render_skill_readmes.py`; a test fails when a sample no longer matches the script.
 - `evals/trigger-prompts.yaml`: five should-trigger and five should-not-trigger prompts for every skill, for the skill-trigger-eval scorer.
-- Tests: seeded fuzz tests that damage every fixture folder and config file (`tests/test_fuzz_exports.py`, `FUZZ_ITERATIONS` for deeper runs), the tenant handover chain through the dispatcher (`tests/test_integration_chain.py`: entra-posture, pim-review, ca-gaps and access-review must agree on the same Global Administrators, role holders and redaction tokens), and a call-count guard on Conditional Access coverage (`tests/test_performance.py`). 229 to 273 tests.
+- Tests: seeded fuzz tests that damage every fixture folder and config file (`tests/test_fuzz_exports.py`, `FUZZ_ITERATIONS` for deeper runs), the tenant handover chain through the dispatcher (`tests/test_integration_chain.py`: entra-posture, pim-review, ca-gaps and access-review must agree on the same Global Administrators, role holders and redaction tokens), and a call-count guard on Conditional Access coverage (`tests/test_performance.py`). 229 to 274 tests.
 
 ### Fixed
 
 - All scripts: a value of the wrong type inside an export (a number where Graph writes a string, a list where it writes an object) exits 2 with a message instead of a traceback, a file that is not UTF-8 exits 2 naming the file, and JSON nested too deep to decode exits 2 instead of raising RecursionError. The fuzz run found 88 distinct crash sites across the ten scripts before the fix and none after.
+- `copilot-oversharing-readiness`: a PowerShell `/Date(...)/` value too large for a date raised OverflowError; it now reads as no date.
 - `_miniyaml` (config and needs files): the input `- - -:` made the parser loop for ever, so a damaged config hung every script; it now exits 2. A flow collection used as a mapping key (`[{x: 1}: 2]`) raised a TypeError; it is now a parse error.
 
 ### Changed
