@@ -166,7 +166,7 @@ def test_miniyaml_inputs_found_by_fuzzing(text):
 
 @pytest.mark.parametrize("case", CASES[:9], ids=[c[0] for c in CASES[:9]])
 def test_json_nested_too_deep_exits_2(case, tmp_path):
-    """JSON nested deeper than Python's recursion limit raised RecursionError from json.loads."""
+    """Deep JSON is refused by an explicit depth check: Python 3.14's json.loads no longer raises RecursionError."""
     skill, script, fixture, config, extra = case
     mod = load_script(skill, script)
     work = tmp_path / "t"
@@ -174,7 +174,15 @@ def test_json_nested_too_deep_exits_2(case, tmp_path):
     target = sorted(work.glob("*.json"))[0]
     target.write_text("[" * 100_000 + "]" * 100_000, encoding="utf-8")
     rc, _, err = run_main(mod, [str(work), *AS_OF])
-    assert rc == 2 and "RecursionError" in err, err
+    assert rc == 2 and "nested more than 200 levels deep" in err and target.name in err, err
+
+
+@pytest.mark.parametrize("skill, script", [("access-review-pack", "_graphio.py"), ("copilot-oversharing-readiness", "copilot_readiness.py")])
+def test_json_depth_ignores_strings_and_stops_at_the_limit(skill, script):
+    mod = load_script(skill, script)
+    assert mod.json_depth('{"a": "' + "[" * 10000 + '\\"{{{", "b": [1, {"c": "]]]"}]}') == 3
+    assert mod.json_depth("[" * mod.MAX_JSON_DEPTH + "]" * mod.MAX_JSON_DEPTH) == mod.MAX_JSON_DEPTH
+    assert mod.json_depth("[" * 100_000) == mod.MAX_JSON_DEPTH + 1
 
 
 def test_powershell_date_beyond_the_platform_range_is_ignored(tmp_path):

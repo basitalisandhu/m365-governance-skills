@@ -4,9 +4,16 @@ All notable changes to this project are documented here. The format follows Keep
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-10-29
+
 ### Added
 
 - `entra-posture-review`: `CA-EMPTY-TARGET` (LOW) flags enabled Conditional Access policies with no included users, groups, roles or guest/external-user target, without treating disabled or report-only policies as enforcing (#6).
+
+### Fixed
+
+- Every script refuses a JSON export or config nested more than 200 levels deep with exit 2 and an error naming the file, on every supported Python. Python 3.14 no longer raises `RecursionError` from `json.loads` at the old depth, so the shared `_graphio.py` reader and `copilot_readiness.py` now check nesting first instead of relying on it.
+- CI tests Python 3.11 to 3.14 on Linux, macOS and Windows.
 
 ## [0.6.0] - 2026-10-26
 

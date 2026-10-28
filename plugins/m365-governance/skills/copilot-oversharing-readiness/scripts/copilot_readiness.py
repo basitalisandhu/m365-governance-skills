@@ -93,6 +93,30 @@ class InputError(Exception):
     """Bad or unreadable input. Exit 2."""
 
 
+MAX_JSON_DEPTH = 200
+_JSON_STRINGS = re.compile(r'"[^"\\]*(?:\\.[^"\\]*)*"', re.S)
+_JSON_NOT_BRACKETS = re.compile(r"[^\[\]{}]+")
+
+
+def json_depth(text: str, limit: int = MAX_JSON_DEPTH) -> int:
+    """Bracket nesting depth of JSON text outside strings, stopping once past ``limit``.
+
+    Python 3.14 no longer raises RecursionError from json.loads on very deep input (it checks stack space
+    instead), so the readers check depth first and report every version the same way.
+    """
+    depth = peak = 0
+    for ch in _JSON_NOT_BRACKETS.sub("", _JSON_STRINGS.sub("", text)):
+        if ch in "[{":
+            depth += 1
+            if depth > peak:
+                peak = depth
+                if peak > limit:
+                    break
+        elif depth:
+            depth -= 1
+    return peak
+
+
 def guard_bad_shapes(main):
     """Decorate main(): a wrongly typed value deep inside an export exits 2 with a message, not a traceback."""
 
@@ -117,6 +141,8 @@ def load_json(path: Path):
         raise InputError(f"{path.name}: not UTF-8 text ({exc.reason} at byte {exc.start}); save the export as UTF-8 JSON") from exc
     if not text.strip():
         raise InputError(f"{path.name}: file is empty; re-run the export and save the JSON output")
+    if json_depth(text) > MAX_JSON_DEPTH:
+        raise InputError(f"{path.name}: JSON is nested more than {MAX_JSON_DEPTH} levels deep; save the export unchanged")
     try:
         return json.loads(text)
     except json.JSONDecodeError as exc:
