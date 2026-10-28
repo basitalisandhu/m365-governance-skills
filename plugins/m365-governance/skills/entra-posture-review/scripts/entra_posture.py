@@ -244,7 +244,9 @@ def check_ca(policies, secdef, cfg, d: Directory) -> list[dict]:
     for p in enabled:
         u = _users(p)
         name = p.get("displayName", p.get("id", "?"))
-        if not any(u.get(key) for key in ("includeUsers", "includeGroups", "includeRoles", "includeGuestsOrExternalUsers")):
+        # Entra writes includeUsers ["None"] when Users > Include is set to "None"; it is not a real target
+        include_users = [x for x in u.get("includeUsers") or [] if x != "None"]
+        if not (include_users or any(u.get(key) for key in ("includeGroups", "includeRoles", "includeGuestsOrExternalUsers"))):
             out.append(finding("CA-EMPTY-TARGET", "LOW", name, "Enabled policy has no included user target",
                                "conditions.users has no includeUsers, includeGroups, includeRoles or includeGuestsOrExternalUsers target",
                                CA_PORTAL + " > (policy) > Users > Include",

@@ -23,8 +23,19 @@ def test_enabled_policy_without_target_is_reported():
 
 
 @pytest.mark.parametrize("users", [
+    {"includeUsers": ["None"]},  # Entra writes this when Users > Include is "None"
+    {"includeUsers": []},
+])
+def test_none_only_policy_target_is_flagged(users):
+    policy = {"id": "p1", "displayName": "no real target", "state": "enabled", "conditions": {"users": users}}
+    findings = mod.check_ca([policy], None, {}, mod.Directory([], [], []))
+    assert any(f["check"] == "CA-EMPTY-TARGET" for f in findings)
+
+
+@pytest.mark.parametrize("users", [
     {"includeUsers": ["All"]},
     {"includeUsers": ["00000000-0000-0000-0000-000000000101"]},
+    {"includeUsers": ["None"], "includeGroups": ["00000000-0000-0000-0000-000000000102"]},
     {"includeGroups": ["00000000-0000-0000-0000-000000000102"]},
     {"includeRoles": [mod.GLOBAL_ADMIN_TEMPLATE]},
     {"includeGuestsOrExternalUsers": {"guestOrExternalUserTypes": "internalGuest",
