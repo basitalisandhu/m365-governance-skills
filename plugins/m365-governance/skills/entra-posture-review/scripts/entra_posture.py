@@ -25,6 +25,7 @@ Checks (id, default severity):
   CA-NO-MFA-ADMINS           CRITICAL  no enabled CA policy requires MFA for all users or for the Global Administrator role
   CA-LEGACY-AUTH             HIGH      no enabled CA policy blocks legacy authentication (Exchange ActiveSync and other clients)
   CA-REPORT-ONLY             LOW       an MFA or block policy is in report-only mode
+  CA-EMPTY-TARGET            LOW       an enabled policy has no included users, groups, roles or guest/external-user target
   CA-EXCLUSION               MEDIUM    an MFA or legacy-auth policy excludes users or groups that are not configured break-glass
   CA-BREAKGLASS-NOT-EXCLUDED MEDIUM    a configured break-glass account is not excluded from an enforcing all-users policy
   CA-NO-BREAKGLASS           INFO      no break-glass accounts configured, so exclusions cannot be told apart
@@ -241,10 +242,17 @@ def check_ca(policies, secdef, cfg, d: Directory) -> list[dict]:
         out.append(finding("CA-NO-BREAKGLASS", "INFO", "config", "No break-glass accounts configured",
                            "set break_glass in the config so exclusions can be told apart from gaps"))
     for p in enabled:
-        if not (requires_mfa(p) or blocks_legacy(p)):
-            continue
         u = _users(p)
         name = p.get("displayName", p.get("id", "?"))
+        # Entra writes includeUsers ["None"] when Users > Include is set to "None"; it is not a real target
+        include_users = [x for x in u.get("includeUsers") or [] if x != "None"]
+        if not (include_users or any(u.get(key) for key in ("includeGroups", "includeRoles", "includeGuestsOrExternalUsers"))):
+            out.append(finding("CA-EMPTY-TARGET", "LOW", name, "Enabled policy has no included user target",
+                               "conditions.users has no includeUsers, includeGroups, includeRoles or includeGuestsOrExternalUsers target",
+                               CA_PORTAL + " > (policy) > Users > Include",
+                               f"GET /identity/conditionalAccess/policies/{p.get('id')} then review conditions.users"))
+        if not (requires_mfa(p) or blocks_legacy(p)):
+            continue
         odd_users = [x for x in u.get("excludeUsers") or [] if x not in bg and x != "GuestsOrExternalUsers"]
         odd_groups = [x for x in u.get("excludeGroups") or [] if x not in bg_groups]
         if odd_users or odd_groups:
