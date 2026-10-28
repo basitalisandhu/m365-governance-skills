@@ -43,6 +43,30 @@ class InputError(Exception):
     """Bad or unreadable input. Scripts exit 2."""
 
 
+MAX_JSON_DEPTH = 200
+_JSON_STRINGS = re.compile(r'"[^"\\]*(?:\\.[^"\\]*)*"', re.S)
+_JSON_NOT_BRACKETS = re.compile(r"[^\[\]{}]+")
+
+
+def json_depth(text: str, limit: int = MAX_JSON_DEPTH) -> int:
+    """Bracket nesting depth of JSON text outside strings, stopping once past ``limit``.
+
+    Python 3.14 no longer raises RecursionError from json.loads on very deep input (it checks stack space
+    instead), so the readers check depth first and report every version the same way.
+    """
+    depth = peak = 0
+    for ch in _JSON_NOT_BRACKETS.sub("", _JSON_STRINGS.sub("", text)):
+        if ch in "[{":
+            depth += 1
+            if depth > peak:
+                peak = depth
+                if peak > limit:
+                    break
+        elif depth:
+            depth -= 1
+    return peak
+
+
 def load_json(path: Path):
     try:
         text = path.read_text(encoding="utf-8-sig")
@@ -52,6 +76,8 @@ def load_json(path: Path):
         raise InputError(f"{path}: not UTF-8 text ({exc.reason} at byte {exc.start}); save the export as UTF-8 JSON") from exc
     if not text.strip():
         raise InputError(f"{path}: file is empty; re-run the export and save the JSON response")
+    if json_depth(text) > MAX_JSON_DEPTH:
+        raise InputError(f"{path}: JSON is nested more than {MAX_JSON_DEPTH} levels deep; save the export unchanged")
     try:
         return json.loads(text)
     except json.JSONDecodeError as exc:
@@ -278,6 +304,8 @@ def load_config(path: str | None, allowed: set[str]) -> dict:
         raise InputError(f"{p}: cannot read: {exc}") from exc
     except UnicodeDecodeError as exc:
         raise InputError(f"{p}: not UTF-8 text ({exc.reason} at byte {exc.start})") from exc
+    if p.suffix == ".json" and json_depth(text) > MAX_JSON_DEPTH:
+        raise InputError(f"{p}: JSON is nested more than {MAX_JSON_DEPTH} levels deep")
     try:
         cfg = json.loads(text) if p.suffix == ".json" else yaml_load(text)
     except (json.JSONDecodeError, YAMLError) as exc:
